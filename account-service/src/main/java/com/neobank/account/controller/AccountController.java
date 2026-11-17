@@ -10,10 +10,21 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.neobank.account.client.CustomerKycClient;
+import com.lowagie.text.Document;
+import com.lowagie.text.Paragraph;
+import com.lowagie.text.Phrase;
+import com.lowagie.text.pdf.PdfPTable;
+import com.lowagie.text.pdf.PdfWriter;
+import java.io.ByteArrayOutputStream;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,6 +49,8 @@ public class AccountController {
     private final com.neobank.account.repository.LedgerEntryRepository ledgerEntryRepository;
     private final com.neobank.account.service.LedgerReconciliationService ledgerReconciliationService;
     private final HoldService holdService;
+    @Autowired(required = false)
+    private CustomerKycClient customerKycClient;
 
     /**
      * Demo-only switch. In production an opening balance means money arrived from outside the bank, so only an
@@ -59,6 +72,7 @@ public class AccountController {
         if (fundsAccount && !caller.isAdmin() && !selfServiceFunding) {
             throw new AccessDeniedException("Accounts are opened empty; fund the account with an incoming payment");
         }
+        if (!caller.isAdmin() && customerKycClient != null) customerKycClient.requireVerified(jwt.getTokenValue());
         Account account = accountService.openAccount(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(AccountResponse.from(account));
     }
@@ -114,6 +128,41 @@ public class AccountController {
     }
 
     /** Recomputes the account's balance purely from the ledger and compares it to the cached value - an audit tool, not something the UI calls on every page load. */
+
+    @GetMapping(value = "/{id}/statement", produces = MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> statement(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) LocalDate from, @RequestParam(required = false) LocalDate to) throws Exception {
+        Account account = accountService.getById(id);
+        requireOwnerOrAdmin(account, jwt);
+        var entries = ledgerEntryRepository.findByAccountIdOrderByCreatedAtDesc(id,
+                org.springframework.data.domain.PageRequest.of(0, 1000)).getContent().stream()
+                .filter(e -> from == null || !e.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate().isBefore(from))
+                .filter(e -> to == null || !e.getCreatedAt().atZone(ZoneOffset.UTC).toLocalDate().isAfter(to))
+                .toList();
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Document pdf = new Document();
+        PdfWriter.getInstance(pdf, output);
+        pdf.open();
+        pdf.add(new Paragraph("NeoBank - Account Statement"));
+        pdf.add(new Paragraph("Account: " + account.getAccountNumber() + " | Holder: " + account.getOwnerName()));
+        pdf.add(new Paragraph("Period: " + (from == null ? "Beginning" : from) + " to " + (to == null ? "Present" : to)));
+        PdfPTable table = new PdfPTable(5);
+        for (String heading : new String[]{"Date (UTC)", "Description", "Type", "Amount", "Balance"}) table.addCell(new Phrase(heading));
+        for (var entry : entries) {
+            table.addCell(entry.getCreatedAt().toString());
+            table.addCell(entry.getDescription());
+            table.addCell(entry.getEntryType().name());
+            table.addCell(entry.getAmount().toPlainString());
+            table.addCell(entry.getBalanceAfter().toPlainString());
+        }
+        pdf.add(table);
+        pdf.close();
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        org.springframework.http.ContentDisposition.attachment().filename("statement-" + id + ".pdf").build().toString())
+                .body(output.toByteArray());
+    }
+
     @GetMapping("/{id}/reconcile")
     public com.neobank.account.dto.ReconciliationResponse reconcile(@PathVariable UUID id, @AuthenticationPrincipal Jwt jwt) {
         Account account = accountService.getById(id);

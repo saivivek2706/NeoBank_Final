@@ -1,0 +1,5 @@
+package com.neobank.account.client;
+import org.springframework.http.*; import org.springframework.security.access.AccessDeniedException; import org.springframework.stereotype.Component; import org.springframework.web.client.RestTemplate; import java.util.Map;
+@Component public class CustomerKycClient { private final RestTemplate restTemplate; public CustomerKycClient(RestTemplate r){restTemplate=r;}
+ public void requireVerified(String accessToken){HttpHeaders h=new HttpHeaders();h.setBearerAuth(accessToken);ResponseEntity<Map> response=restTemplate.exchange("http://customer-service/api/v1/kyc/status",HttpMethod.GET,new HttpEntity<>(h),Map.class);Object status=response.getBody()==null?null:response.getBody().get("kycStatus");if(!"VERIFIED".equals(status))throw new AccessDeniedException("Complete KYC verification before opening an account");}
+}

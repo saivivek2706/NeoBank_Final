@@ -46,6 +46,10 @@ public class VelocityLimitService {
     }
 
     public void checkOrThrow(UUID fromAccountId, BigDecimal newTransferAmount) {
+        checkOrThrow(fromAccountId, newTransferAmount, "FULL");
+    }
+
+    public void checkOrThrow(UUID fromAccountId, BigDecimal newTransferAmount, String kycTier) {
         // Simplification: amounts are summed as raw numbers regardless of
         // currency. A real multi-currency deployment would need to convert
         // to a common unit (or track limits per-currency) before comparing.
@@ -56,11 +60,16 @@ public class VelocityLimitService {
                     "Too many transfer attempts from this account in the last hour. Please try again later.");
         }
 
+        BigDecimal tierLimit = switch (kycTier == null ? "BASIC" : kycTier.toUpperCase(java.util.Locale.ROOT)) {
+            case "FULL" -> maxAmountPer24h;
+            case "STANDARD" -> maxAmountPer24h.min(new BigDecimal("5000.00"));
+            default -> maxAmountPer24h.min(new BigDecimal("1000.00"));
+        };
         Instant oneDayAgo = Instant.now().minus(Duration.ofHours(24));
         BigDecimal sentLast24h = transactionRepository.sumAmountSentSince(fromAccountId, oneDayAgo, TransactionStatus.FAILED);
-        if (sentLast24h.add(newTransferAmount).compareTo(maxAmountPer24h) > 0) {
+        if (sentLast24h.add(newTransferAmount).compareTo(tierLimit) > 0) {
             throw new VelocityLimitExceededException(
-                    "This transfer would exceed the account's 24-hour transfer limit.");
+                    "This transfer would exceed the 24-hour limit for your current KYC tier (" + kycTier + ").");
         }
     }
 }

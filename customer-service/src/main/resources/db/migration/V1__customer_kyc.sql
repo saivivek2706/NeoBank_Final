@@ -1,0 +1,4 @@
+CREATE TABLE customer_profiles (user_id UUID PRIMARY KEY, full_name VARCHAR(120) NOT NULL, email VARCHAR(254), phone VARCHAR(30), kyc_status VARCHAR(24) NOT NULL DEFAULT 'NOT_STARTED', kyc_tier VARCHAR(16) NOT NULL DEFAULT 'BASIC', created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL);
+CREATE INDEX idx_customer_profiles_kyc_status ON customer_profiles(kyc_status);
+CREATE TABLE kyc_documents (id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES customer_profiles(user_id) ON DELETE CASCADE, document_type VARCHAR(40) NOT NULL, file_name VARCHAR(255) NOT NULL, content_type VARCHAR(100) NOT NULL, file_size BIGINT NOT NULL, content BYTEA NOT NULL, uploaded_at TIMESTAMPTZ NOT NULL);
+CREATE INDEX idx_kyc_documents_user_uploaded ON kyc_documents(user_id,uploaded_at DESC);

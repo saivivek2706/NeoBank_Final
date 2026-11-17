@@ -18,6 +18,9 @@ import com.neobank.transaction.websocket.TransactionSocketNotifier;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
+import com.neobank.transaction.repository.BeneficiaryRepository;
+import com.neobank.transaction.client.KycTierClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,6 +61,8 @@ public class TransferService {
     private final StepUpTokenValidator stepUpTokenValidator;
     private final SagaMetrics sagaMetrics;
     private final BigDecimal stepUpThresholdAmount;
+    @Autowired(required = false) private BeneficiaryRepository beneficiaryRepository;
+    @Autowired(required = false) private KycTierClient kycTierClient;
 
     // Explicit constructor (rather than Lombok @RequiredArgsConstructor) so
     // stepUpThresholdAmount is a real constructor dependency - anyone building
@@ -116,9 +121,13 @@ public class TransferService {
         // ANY account by supplying its id - authentication alone proves who
         // you are, not that you're allowed to touch this specific account.
         accountClient.verifyCallerOwnsAccount(request.fromAccountId(), bearerToken);
+        if (beneficiaryRepository != null && !beneficiaryRepository.existsByOwnerUserIdAndDestinationAccountIdAndAvailableAtLessThanEqual(callerUserId, request.toAccountId(), java.time.Instant.now())) {
+            throw new IllegalArgumentException("Beneficiary is not active yet. Add the beneficiary and wait for the cooling-off period.");
+        }
 
         // 2. Velocity limits: how much / how often has this account sent recently.
-        velocityLimitService.checkOrThrow(request.fromAccountId(), request.amount());
+        String kycTier = kycTierClient == null ? "FULL" : kycTierClient.getKycTier(bearerToken);
+        velocityLimitService.checkOrThrow(request.fromAccountId(), request.amount(), kycTier);
 
         // 3. Step-up MFA for high-value transfers: a valid password-authenticated
         // session is not, on its own, considered sufficient to move a large sum -

@@ -1,0 +1,7 @@
+package com.neobank.transaction.service;
+import com.neobank.transaction.domain.Beneficiary; import com.neobank.transaction.repository.BeneficiaryRepository; import org.springframework.beans.factory.annotation.Value; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional; import java.util.*;
+@Service public class BeneficiaryService { private final BeneficiaryRepository repo; private final long hours; public BeneficiaryService(BeneficiaryRepository r,@Value("${transaction.beneficiaries.cooling-off-hours:24}") long h){repo=r;hours=h;}
+ @Transactional public Beneficiary add(UUID owner,UUID destination,String nickname){if(repo.findByOwnerUserIdOrderByCreatedAtDesc(owner).stream().anyMatch(b->b.getDestinationAccountId().equals(destination)))throw new IllegalArgumentException("Beneficiary already exists");return repo.save(new Beneficiary(owner,destination,nickname,hours));}
+ @Transactional(readOnly=true) public List<Beneficiary> list(UUID owner){return repo.findByOwnerUserIdOrderByCreatedAtDesc(owner);}
+ @Transactional public void remove(UUID owner,UUID id){Beneficiary b=repo.findByIdAndOwnerUserId(id,owner).orElseThrow(()->new NoSuchElementException("Beneficiary not found"));repo.delete(b);}
+}

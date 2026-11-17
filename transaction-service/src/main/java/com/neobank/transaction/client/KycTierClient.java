@@ -1,0 +1,5 @@
+package com.neobank.transaction.client;
+import org.slf4j.MDC; import org.springframework.http.*; import org.springframework.stereotype.Component; import org.springframework.web.client.RestTemplate; import java.util.Map;
+@Component public class KycTierClient { private final RestTemplate restTemplate; public KycTierClient(RestTemplate restTemplate){this.restTemplate=restTemplate;}
+ @SuppressWarnings("unchecked") public String getKycTier(String bearerToken){HttpHeaders h=new HttpHeaders();h.set(HttpHeaders.AUTHORIZATION,bearerToken);String id=MDC.get("requestId");if(id!=null)h.set("X-Request-Id",id);ResponseEntity<Map> r=restTemplate.exchange("http://customer-service/api/v1/kyc/status",HttpMethod.GET,new HttpEntity<>(h),Map.class);Object tier=r.getBody()==null?null:r.getBody().get("kycTier");return tier==null?"BASIC":tier.toString();}
+}

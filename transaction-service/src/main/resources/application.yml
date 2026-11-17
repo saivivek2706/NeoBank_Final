@@ -53,6 +53,8 @@ security:
     jwks-uri: ${JWT_JWKS_URI:http://auth-service:8080/.well-known/jwks.json}
 
 transaction:
+  beneficiaries:
+    cooling-off-hours: ${BENEFICIARY_COOLING_OFF_HOURS:24}
   step-up:
     # Transfers at or above this amount require a fresh TOTP-backed step-up
     # token from auth-service (POST /api/v1/auth/mfa/step-up) - a simplified

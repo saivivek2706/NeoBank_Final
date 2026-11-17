@@ -10,6 +10,8 @@ import { TransferPage } from "./pages/TransferPage";
 import { TransactionStatusPage } from "./pages/TransactionStatusPage";
 import { FraudDashboardPage } from "./pages/FraudDashboardPage";
 import { SecuritySettingsPage } from "./pages/SecuritySettingsPage";
+import { KycPage } from "./pages/KycPage";
+import { BeneficiariesPage } from "./pages/BeneficiariesPage";
 
 export default function App() {
   return (
@@ -60,6 +62,8 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route path="/kyc" element={<ProtectedRoute><KycPage /></ProtectedRoute>} />
+            <Route path="/beneficiaries" element={<ProtectedRoute><BeneficiariesPage /></ProtectedRoute>} />
             <Route
               path="/security"
               element={

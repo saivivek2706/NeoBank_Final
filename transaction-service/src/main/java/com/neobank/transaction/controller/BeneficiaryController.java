@@ -1,0 +1,9 @@
+package com.neobank.transaction.controller;
+import com.neobank.transaction.domain.Beneficiary; import com.neobank.transaction.service.BeneficiaryService; import jakarta.validation.Valid; import jakarta.validation.constraints.*; import org.springframework.http.*; import org.springframework.security.core.annotation.AuthenticationPrincipal; import org.springframework.security.oauth2.jwt.Jwt; import org.springframework.web.bind.annotation.*; import java.time.Instant; import java.util.*;
+@RestController @RequestMapping("/api/v1/beneficiaries") public class BeneficiaryController {private final BeneficiaryService service;public BeneficiaryController(BeneficiaryService s){service=s;}
+ public record CreateRequest(@NotNull UUID destinationAccountId,@NotBlank @Size(max=80) String nickname){}
+ public record Response(UUID id,UUID destinationAccountId,String nickname,Instant createdAt,Instant availableAt,boolean active){static Response of(Beneficiary b){return new Response(b.getId(),b.getDestinationAccountId(),b.getNickname(),b.getCreatedAt(),b.getAvailableAt(),!b.getAvailableAt().isAfter(Instant.now()));}}
+ @PostMapping public Response add(@Valid @RequestBody CreateRequest r,@AuthenticationPrincipal Jwt jwt){return Response.of(service.add(UUID.fromString(jwt.getSubject()),r.destinationAccountId(),r.nickname()));}
+ @GetMapping public List<Response> list(@AuthenticationPrincipal Jwt jwt){return service.list(UUID.fromString(jwt.getSubject())).stream().map(Response::of).toList();}
+ @DeleteMapping("/{id}") public ResponseEntity<Void> remove(@PathVariable UUID id,@AuthenticationPrincipal Jwt jwt){service.remove(UUID.fromString(jwt.getSubject()),id);return ResponseEntity.noContent().build();}
+}

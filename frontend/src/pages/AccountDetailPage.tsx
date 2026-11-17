@@ -71,6 +71,7 @@ export function AccountDetailPage() {
       <div className="account-card" style={{ marginBottom: 24 }}>
         <div>
           <div className="account-number">{account.accountNumber}</div>
+          <a className="link-row" href={`/api/v1/accounts/${account.id}/statement`}>Download PDF statement</a>
           <div className="account-owner">
             {connected && <span className="live-dot" />}
             {account.accountType} · {account.status}

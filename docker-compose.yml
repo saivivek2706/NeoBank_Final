@@ -255,6 +255,25 @@ services:
       eureka-server:
         condition: service_healthy
 
+  customer-service:
+    build:
+      context: .
+      dockerfile: customer-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/neobank_customer
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
   transaction-service:
     build:
       context: .

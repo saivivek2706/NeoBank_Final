@@ -1,0 +1,7 @@
+package com.neobank.transaction.domain;
+import jakarta.persistence.*; import java.time.Instant; import java.util.UUID;
+@Entity @Table(name="beneficiaries",uniqueConstraints=@UniqueConstraint(name="uk_beneficiary_owner_destination",columnNames={"owner_user_id","destination_account_id"})) public class Beneficiary {
+ @Id @GeneratedValue(strategy=GenerationType.UUID) private UUID id; @Column(name="owner_user_id",nullable=false) private UUID ownerUserId; @Column(name="destination_account_id",nullable=false) private UUID destinationAccountId; @Column(nullable=false,length=80) private String nickname; @Column(nullable=false) private Instant createdAt; @Column(nullable=false) private Instant availableAt;
+ protected Beneficiary(){} public Beneficiary(UUID owner,UUID destination,String nickname,long hours){ownerUserId=owner;destinationAccountId=destination;this.nickname=nickname;createdAt=Instant.now();availableAt=createdAt.plusSeconds(hours*3600);}
+ public UUID getId(){return id;} public UUID getOwnerUserId(){return ownerUserId;} public UUID getDestinationAccountId(){return destinationAccountId;} public String getNickname(){return nickname;} public Instant getCreatedAt(){return createdAt;} public Instant getAvailableAt(){return availableAt;}
+}

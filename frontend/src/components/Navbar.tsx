@@ -19,6 +19,8 @@ export function Navbar() {
           </NavLink>
           <NavLink to="/transfer">Transfer</NavLink>
           <NavLink to="/security">Security</NavLink>
+          <NavLink to="/kyc">KYC</NavLink>
+          <NavLink to="/beneficiaries">Beneficiaries</NavLink>
           {session.role === "ADMIN" && <NavLink to="/fraud">Fraud Watch</NavLink>}
           <button className="btn-ghost" onClick={logout}>
             Sign out

@@ -29,6 +29,7 @@
         <module>fraud-service</module>
         <module>audit-service</module>
         <module>compliance-service</module>
+        <module>customer-service</module>
     </modules>
 
     <properties>

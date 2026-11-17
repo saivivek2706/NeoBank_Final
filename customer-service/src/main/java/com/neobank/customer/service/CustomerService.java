@@ -1,0 +1,13 @@
+package com.neobank.customer.service;
+import com.neobank.customer.domain.*; import com.neobank.customer.repository.*; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Transactional; import org.springframework.web.multipart.MultipartFile; import java.util.*;
+@Service public class CustomerService {
+ private final CustomerProfileRepository profiles; private final KycDocumentRepository docs;
+ public CustomerService(CustomerProfileRepository p,KycDocumentRepository d){profiles=p;docs=d;}
+ @Transactional public CustomerProfile getOrCreate(UUID id,String name){return profiles.findById(id).orElseGet(()->profiles.save(new CustomerProfile(id,name==null||name.isBlank()?"Customer":name,null,null)));}
+ @Transactional public CustomerProfile update(UUID id,String name,String email,String phone){CustomerProfile p=getOrCreate(id,name);p.update(name,email,phone);return p;}
+ @Transactional public KycDocument upload(UUID id,String type,MultipartFile f)throws java.io.IOException {if(f.isEmpty()||f.getSize()>10*1024*1024)throw new IllegalArgumentException("Document must be 1 byte to 10 MB");String mime=f.getContentType();if(mime==null||!(mime.equals("application/pdf")||mime.startsWith("image/")))throw new IllegalArgumentException("Only PDF and image files accepted");getOrCreate(id,null);return docs.save(new KycDocument(id,type,f.getOriginalFilename()==null?"document":f.getOriginalFilename(),mime,f.getBytes()));}
+ @Transactional public CustomerProfile submit(UUID id){CustomerProfile p=getOrCreate(id,null);if(docs.findByUserIdOrderByUploadedAtDesc(id).isEmpty())throw new IllegalStateException("Upload at least one document first");p.submit();return p;}
+ @Transactional(readOnly=true) public List<KycDocument> documents(UUID id){return docs.findByUserIdOrderByUploadedAtDesc(id);}
+ @Transactional(readOnly=true) public KycDocument document(UUID id,UUID doc){return docs.findByIdAndUserId(doc,id).orElseThrow(()->new IllegalArgumentException("Document not found"));}
+ @Transactional public CustomerProfile review(UUID id,KycStatus s,KycTier t){CustomerProfile p=profiles.findById(id).orElseThrow(()->new IllegalArgumentException("Customer not found"));p.review(s,t);return p;}
+}
