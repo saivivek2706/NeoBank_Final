@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+  namespace: neobank
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: account-service }
+  template:
+    metadata:
+      labels: { app: account-service }
+    spec:
+      containers:
+        - name: account-service
+          image: neobank/account-service:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: neobank-config }
+            - secretRef: { name: neobank-secrets }
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/neobank_account
+          ports: [{ containerPort: 8081 }]
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /actuator/health, port: 8081 }
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "200m", memory: "384Mi" }
+            limits: { cpu: "1", memory: "768Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+  namespace: neobank
+spec:
+  selector: { app: account-service }
+  ports: [{ port: 8081, targetPort: 8081 }]
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: account-service-hpa
+  namespace: neobank
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: account-service
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }

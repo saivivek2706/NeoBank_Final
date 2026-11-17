@@ -1,0 +1,18 @@
+# Shared across ALL services that import from the config server.
+# Each service's own local application.yml still wins for anything not
+# listed here - config-server values only override matching keys.
+#
+# This is where you'd rotate secrets, toggle feature flags, or change
+# log levels across the whole fleet without redeploying every service.
+#
+# NOTE: JWT signing/verification config intentionally is NOT centralized
+# here. auth-service's private key (security.jwt.private-key-b64/public-key-b64)
+# and every other service's security.jwt.jwks-uri are set per-service (see
+# each service's application.yml / docker-compose env / k8s secret) so that
+# rotating the signing key is a deliberate, auditable change to auth-service
+# specifically - not something that could be silently overridden fleet-wide
+# by editing one shared file.
+
+logging:
+  level:
+    com.neobank: INFO

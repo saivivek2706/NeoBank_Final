@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: compliance-service
+  namespace: neobank
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: compliance-service }
+  template:
+    metadata:
+      labels: { app: compliance-service }
+    spec:
+      containers:
+        - name: compliance-service
+          image: neobank/compliance-service:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: neobank-config }
+            - secretRef: { name: neobank-secrets }
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/neobank_compliance
+          ports: [{ containerPort: 8086 }]
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8086 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "100m", memory: "320Mi" }
+            limits: { cpu: "500m", memory: "640Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: compliance-service
+  namespace: neobank
+spec:
+  selector: { app: compliance-service }
+  ports: [{ port: 8086, targetPort: 8086 }]

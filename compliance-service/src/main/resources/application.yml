@@ -1,0 +1,101 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: compliance-service
+
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/neobank_compliance
+    # Credentials come from the environment (.env via docker compose, a k8s Secret in-cluster).
+    # There is deliberately no default password: a missing secret fails fast at startup.
+    username: ${POSTGRES_USER:neobank}
+    password: ${POSTGRES_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: compliance-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      properties:
+        isolation.level: read_committed
+
+security:
+  jwt:
+    jwks-uri: ${JWT_JWKS_URI:http://auth-service:8080/.well-known/jwks.json}
+
+# ---- compliance rules (explicit env mappings: Spring cannot map UNDERSCORED env vars onto dashed property names) ----
+compliance:
+  aml:
+    # A single movement at or above this value raises a LARGE_TRANSACTION alert. Applied to every currency as a plain
+    # number - a real deployment would convert to a reporting currency first.
+    large-transaction-threshold: ${AML_LARGE_TRANSACTION_THRESHOLD:10000}
+    structuring-window: ${AML_STRUCTURING_WINDOW:PT24H}
+    structuring-lower-ratio: ${AML_STRUCTURING_LOWER_RATIO:0.80}      # "just below" = 80%..100% of the threshold
+    structuring-min-count: ${AML_STRUCTURING_MIN_COUNT:3}
+    rapid-movement-window: ${AML_RAPID_MOVEMENT_WINDOW:PT24H}
+    rapid-movement-min-amount: ${AML_RAPID_MOVEMENT_MIN_AMOUNT:1000}
+    rapid-movement-out-ratio: ${AML_RAPID_MOVEMENT_OUT_RATIO:0.90}    # >=90% of what came in went straight back out
+    high-velocity-count: ${AML_HIGH_VELOCITY_COUNT:10}
+    high-velocity-window: ${AML_HIGH_VELOCITY_WINDOW:PT1H}
+  sanctions:
+    review-threshold: ${SANCTIONS_REVIEW_THRESHOLD:0.88}               # fuzzy score at/above which a human reviews the hit
+    freeze-on-potential-match: ${SANCTIONS_FREEZE_ON_POTENTIAL_MATCH:false}   # an exact-name hit is ALWAYS frozen
+  cases:
+    sla-critical: PT24H
+    sla-high: PT72H
+    sla-medium: P7D
+    sla-low: P14D
+
+maintenance:
+  outbox:
+    retention: PT72H
+  processed-events:
+    retention: P14D
+  cleanup:
+    cron: "0 20 3 * * *"
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{requestId:-}]"
+  level:
+    com.neobank: INFO
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_UI_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:true}

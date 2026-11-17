@@ -1,0 +1,21 @@
+-- Intentionally a no-op migration (kept only so the Flyway version sequence
+-- isn't renumbered - renumbering already-applied migrations is worse than an
+-- empty one).
+--
+-- The original version of this migration inserted the demo admin user via a
+-- raw SQL INSERT with a plaintext email/full_name. That stopped working once
+-- V5 added application-level AES-GCM encryption for those columns (see
+-- EncryptedStringConverter) - a raw SQL INSERT has no way to encrypt a value
+-- or compute its blind-index hash, both of which require the app's runtime
+-- keys. Seeding now happens in AdminUserSeeder, an ApplicationRunner that
+-- goes through the normal User entity/repository path on startup, so it gets
+-- encryption and the blind index for free, exactly like any real user
+-- signing up would.
+--
+-- NOTE: if you already ran this migration's OLD version against a live
+-- database before this change, Flyway will report a checksum mismatch on
+-- next startup. For local/demo environments the fix is simply to wipe the
+-- volume and start fresh (`docker compose down -v`); a real environment
+-- would instead run `flyway repair` after confirming the discrepancy is
+-- expected.
+SELECT 1;

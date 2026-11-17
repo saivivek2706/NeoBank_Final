@@ -1,0 +1,889 @@
+{
+  "uid": "neobank-saga",
+  "title": "NeoBank - Transfer Saga",
+  "tags": [
+    "neobank",
+    "saga"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "10s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Transfers started / completed / failed (per min)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neobank_transfers_started_total[5m]))*60",
+          "legendFormat": "started",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(neobank_transfers_completed_total[5m]))*60",
+          "legendFormat": "completed",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(rate(neobank_transfers_failed_total[5m]))*60",
+          "legendFormat": "failed",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Saga throughput. started - completed - failed that doesn't converge means transfers are getting stuck."
+    },
+    {
+      "id": 2,
+      "title": "Saga success ratio (15m)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(neobank_transfers_completed_total[15m])) / clamp_min(sum(increase(neobank_transfers_started_total[15m])),1)",
+          "legendFormat": "success",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.8
+              },
+              {
+                "color": "green",
+                "value": 0.95
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 3,
+      "title": "Compensations (15m)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(neobank_transfers_compensated_total[15m]))",
+          "legendFormat": "debits reversed",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Debits that had to be reversed because the credit failed. Should be rare; a spike points at the receiving side."
+    },
+    {
+      "id": 4,
+      "title": "Saga duration p50 / p95 / p99",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(neobank_transfers_saga_duration_seconds_bucket{outcome=\"completed\"}[5m])))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(neobank_transfers_saga_duration_seconds_bucket{outcome=\"completed\"}[5m])))",
+          "legendFormat": "p95",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(neobank_transfers_saga_duration_seconds_bucket{outcome=\"completed\"}[5m])))",
+          "legendFormat": "p99",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Time from POST /transfer to COMPLETED, across the Kafka saga (debit -> credit -> complete)."
+    },
+    {
+      "id": 5,
+      "title": "Failures by saga stage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (stage) (increase(neobank_transfers_failed_total[15m]))",
+          "legendFormat": "{{stage}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "debit = rejected before any money moved (e.g. insufficient funds). credit = debit succeeded, credit failed, debit compensated."
+    },
+    {
+      "id": 6,
+      "title": "Outbox backlog (pending events)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (job) (neobank_outbox_pending)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 500
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Events written to the DB but not yet relayed to Kafka. Growing = relay or Kafka is behind."
+    },
+    {
+      "id": 7,
+      "title": "Outbox DEAD events",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (job) (neobank_outbox_dead)",
+          "legendFormat": "{{job}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Events that exhausted relay retries and need a human. ALERT on > 0."
+    },
+    {
+      "id": 8,
+      "title": "Dead-lettered Kafka messages (15m)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 16,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (job, topic) (increase(neobank_kafka_dead_letters_total[15m]))",
+          "legendFormat": "{{job}} {{topic}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Records that failed all retries and were parked on <topic>.DLT. ALERT on > 0 - see docs/runbook.md for replay."
+    },
+    {
+      "id": 9,
+      "title": "Idempotent replays (per min)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neobank_transfers_idempotent_replays_total[5m]))*60",
+          "legendFormat": "replays",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {},
+      "description": "Duplicate POST /transfer requests answered from the original transaction (client retries that did NOT move money twice)."
+    },
+    {
+      "id": 10,
+      "title": "Gateway request rate by status",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (httpStatusCode) (rate(spring_cloud_gateway_requests_seconds_count{job=\"api-gateway\"}[5m]))",
+          "legendFormat": "{{httpStatusCode}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 11,
+      "title": "Ledger reconciliation drift",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 24,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(neobank_ledger_reconciliation_drift_total[1h]))",
+          "legendFormat": "accounts with drift",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Accounts whose cached balance disagreed with the ledger sum at the last sweep (ledger reconciliation sweep, every 5 min). Zero is healthy; ALERT on any increase.."
+    },
+    {
+      "id": 12,
+      "title": "Unbalanced journals / currencies",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(neobank_ledger_unbalanced_journals) + sum(neobank_ledger_unbalanced_currencies)",
+          "legendFormat": "unbalanced",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Double-entry integrity: must be 0. Anything else pages someone."
+    },
+    {
+      "id": 13,
+      "title": "Accounts drifting from their postings",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 32,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(neobank_ledger_account_drift)",
+          "legendFormat": "drifted accounts",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Accounts whose cached balance differs from the balance derived from the journal. Must be 0."
+    },
+    {
+      "id": 14,
+      "title": "Transfers stuck in settlement",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(neobank_ledger_stuck_transfers)",
+          "legendFormat": "stuck",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Debited but neither credited nor reversed after 10 minutes - money is stranded in SETTLEMENT."
+    },
+    {
+      "id": 15,
+      "title": "Open external-reconciliation breaks",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 32,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(neobank_reconciliation_open_breaks)",
+          "legendFormat": "open breaks",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Unresolved differences between the ledger and the settlement bank's statement."
+    },
+    {
+      "id": 16,
+      "title": "Fees collected (per hour)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (currency) (increase(neobank_fees_collected_total[1h]))",
+          "legendFormat": "{{currency}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 17,
+      "title": "Holds placed / captured / expired (per hour)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(neobank_holds_placed_total[1h]))",
+          "legendFormat": "placed",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(neobank_holds_captured_total[1h]))",
+          "legendFormat": "captured",
+          "refId": "B"
+        },
+        {
+          "expr": "sum(increase(neobank_holds_expired_total[1h]))",
+          "legendFormat": "expired",
+          "refId": "C"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 18,
+      "title": "Open compliance cases",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(neobank_compliance_cases_open)",
+          "legendFormat": "open",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "AML and sanctions cases not yet closed."
+    },
+    {
+      "id": 19,
+      "title": "Overdue compliance cases",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 48,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(neobank_compliance_cases_overdue)",
+          "legendFormat": "overdue",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Open cases past their SLA due date."
+    },
+    {
+      "id": 20,
+      "title": "Sanctions hits (24h)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 48,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (outcome) (increase(neobank_sanctions_hits_total[24h]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "STRONG_MATCH = exact name, account frozen automatically; POTENTIAL_MATCH = needs a human."
+    },
+    {
+      "id": 21,
+      "title": "Audit chain intact",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 48,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "min(neobank_audit_chain_valid)",
+          "legendFormat": "1 = intact",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "1 while the audit hash chain verifies; 0 means tampering was detected."
+    },
+    {
+      "id": 22,
+      "title": "AML alerts by rule (per hour)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum by (rule) (increase(neobank_aml_alerts_total[1h]))",
+          "legendFormat": "{{rule}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 23,
+      "title": "Transactions monitored (per min)",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 56,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(neobank_aml_transactions_monitored_total[5m]))*60",
+          "legendFormat": "monitored",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {}
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": []
+  },
+  "editable": true
+}

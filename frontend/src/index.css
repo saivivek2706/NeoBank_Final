@@ -1,0 +1,361 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ---- Design tokens ----
+     Concept: a digital ledger/passbook. Deep ink-navy surfaces (the cover of
+     a bank passbook), off-white text (the printed page), and a single
+     "stamped ink" teal used sparingly for confirmed/positive states -
+     literally the color of a bank teller's ink stamp. Amber for in-flight
+     saga states, red reserved only for failure/fraud so it stays alarming. */
+  --ink-900: #0a1420;
+  --ink-800: #101d2e;
+  --ink-700: #17273b;
+  --ink-600: #22374f;
+  --paper: #eef1f6;
+  --paper-dim: #b7c2d0;
+  --stamp-teal: #2dd4a7;
+  --stamp-teal-dim: #1c8f70;
+  --stamp-amber: #f5a623;
+  --stamp-red: #e5484d;
+  --font-display: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink-900);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(45, 212, 167, 0.06), transparent 40%),
+    radial-gradient(circle at 85% 100%, rgba(245, 166, 35, 0.05), transparent 40%);
+  color: var(--paper);
+  font-family: var(--font-display);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; }
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input {
+  font-family: inherit;
+}
+
+::selection {
+  background: var(--stamp-teal-dim);
+  color: var(--ink-900);
+}
+
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+}
+
+/* ---------- Navbar ---------- */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px 0;
+  border-bottom: 1px solid var(--ink-600);
+  margin-bottom: 32px;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.brand-mark {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+}
+
+.brand-mark span { color: var(--stamp-teal); }
+
+.brand-tag {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--paper-dim);
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  font-size: 14px;
+}
+
+.nav-links a {
+  text-decoration: none;
+  color: var(--paper-dim);
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+}
+
+.nav-links a.active,
+.nav-links a:hover {
+  color: var(--paper);
+  border-bottom-color: var(--stamp-teal);
+}
+
+.btn-ghost {
+  background: none;
+  border: 1px solid var(--ink-600);
+  color: var(--paper-dim);
+  padding: 8px 14px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.btn-ghost:hover { border-color: var(--stamp-teal-dim); color: var(--paper); }
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--ink-800);
+  border: 1px solid var(--ink-600);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.card-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--paper-dim);
+  margin: 0 0 16px;
+}
+
+/* ---------- Account card ---------- */
+.account-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  background: linear-gradient(135deg, var(--ink-700), var(--ink-800));
+  border: 1px solid var(--ink-600);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 14px;
+  position: relative;
+  overflow: hidden;
+}
+
+.account-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    115deg, transparent, transparent 38px, rgba(255,255,255,0.015) 38px, rgba(255,255,255,0.015) 39px
+  );
+  pointer-events: none;
+}
+
+.account-number {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--paper-dim);
+  letter-spacing: 0.05em;
+}
+
+.account-owner {
+  font-size: 15px;
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.account-balance {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.account-currency {
+  font-size: 13px;
+  color: var(--paper-dim);
+  margin-left: 6px;
+}
+
+/* ---------- Stamp badge (the signature element) ----------
+   Styled to evoke an actual rubber ink stamp on a paper ledger: slightly
+   rotated, a soft ink-bleed border, monospace uppercase. */
+.stamp {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1.5px solid currentColor;
+  transform: rotate(-2deg);
+}
+
+.stamp-completed { color: var(--stamp-teal); }
+.stamp-pending, .stamp-debit_pending, .stamp-credit_pending { color: var(--stamp-amber); }
+.stamp-failed, .stamp-compensating { color: var(--stamp-red); }
+.stamp-initiated { color: var(--paper-dim); }
+
+/* ---------- Ledger feed (transaction / audit list) ---------- */
+.ledger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--ink-600);
+  font-size: 14px;
+}
+.ledger-row:last-child { border-bottom: none; }
+
+.ledger-main { display: flex; flex-direction: column; gap: 4px; }
+.ledger-amount { font-family: var(--font-mono); font-weight: 600; }
+.ledger-meta { font-size: 12px; color: var(--paper-dim); }
+
+/* ---------- Forms ---------- */
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.form-field label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--paper-dim);
+}
+
+.form-field input,
+.form-field select {
+  background: var(--ink-900);
+  border: 1px solid var(--ink-600);
+  color: var(--paper);
+  padding: 11px 12px;
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  border-color: var(--stamp-teal-dim);
+  box-shadow: 0 0 0 3px rgba(45, 212, 167, 0.15);
+}
+
+.btn-primary {
+  background: var(--stamp-teal);
+  color: var(--ink-900);
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  width: 100%;
+}
+.btn-primary:hover { background: #3fe3b6; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.error-banner {
+  background: rgba(229, 72, 77, 0.12);
+  border: 1px solid var(--stamp-red);
+  color: #ff9a9d;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--paper-dim);
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+.auth-shell {
+  max-width: 380px;
+  margin: 80px auto;
+}
+
+.auth-shell h1 {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+.auth-shell .subtitle {
+  color: var(--paper-dim);
+  font-size: 14px;
+  margin-bottom: 28px;
+}
+
+.link-row {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--paper-dim);
+}
+
+.link-row a { color: var(--stamp-teal); text-decoration: none; }
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--stamp-teal);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.severity-high { color: var(--stamp-red); }
+.severity-medium { color: var(--stamp-amber); }
+.severity-low { color: var(--paper-dim); }
+
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--stamp-teal);
+  margin-right: 6px;
+  box-shadow: 0 0 0 0 rgba(45,212,167, 0.6);
+  animation: pulse 1.8s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(45,212,167, 0.5); }
+  70% { box-shadow: 0 0 0 8px rgba(45,212,167, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(45,212,167, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot { animation: none; }
+}
+
+@media (max-width: 600px) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .account-balance { font-size: 22px; }
+}

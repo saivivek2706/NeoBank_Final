@@ -1,0 +1,31 @@
+# Requires an ingress controller installed in the cluster (e.g. ingress-nginx:
+#   helm install ingress-nginx ingress-nginx/ingress-nginx
+# ). Once that's in place, switch the api-gateway and frontend Services above
+# from `type: LoadBalancer` to `type: ClusterIP` and apply this instead -
+# one external IP for the whole app instead of two.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: neobank-ingress
+  namespace: neobank
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: neobank.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: api-gateway, port: { number: 8000 } }
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service: { name: api-gateway, port: { number: 8000 } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: frontend, port: { number: 80 } }

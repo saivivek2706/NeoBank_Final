@@ -1,0 +1,101 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: transaction-service
+
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/neobank_transaction
+    # Credentials come from the environment (.env via docker compose, a k8s Secret in-cluster).
+    # There is deliberately no default password: a missing secret fails fast at startup.
+    username: ${POSTGRES_USER:neobank}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        retries: 5
+    consumer:
+      group-id: transaction-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+      properties:
+        isolation.level: read_committed
+
+  data:
+    redis:
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
+
+security:
+  jwt:
+    jwks-uri: ${JWT_JWKS_URI:http://auth-service:8080/.well-known/jwks.json}
+
+transaction:
+  step-up:
+    # Transfers at or above this amount require a fresh TOTP-backed step-up
+    # token from auth-service (POST /api/v1/auth/mfa/step-up) - a simplified
+    # single global threshold rather than a full per-currency/per-risk-tier
+    # model, which a real bank would layer on top of this.
+    threshold-amount: ${STEP_UP_THRESHOLD_AMOUNT:1000.00}
+  velocity:
+    # Rolling-24h cap on money OUT of a single account, and a cap on how many
+    # transfer attempts (successful or not) it can make per hour - the two
+    # together bound both "how much" and "how often" one account can move.
+    max-amount-per-24h: ${VELOCITY_MAX_AMOUNT_24H:10000.00}
+    max-attempts-per-hour: ${VELOCITY_MAX_ATTEMPTS_HOUR:20}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-},%X{requestId:-}]"
+  level:
+    com.neobank: INFO
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_UI_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:true}

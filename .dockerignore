@@ -1,0 +1,15 @@
+# Keep the backend build context small and free of local junk / secrets.
+**/target
+**/node_modules
+frontend
+.git
+.github
+.idea
+.vscode
+.env
+docs
+k8s
+load-tests
+e2e-tests
+observability
+**/*.md

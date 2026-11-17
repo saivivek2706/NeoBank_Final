@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-service
+  namespace: neobank
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: fraud-service }
+  template:
+    metadata:
+      labels: { app: fraud-service }
+    spec:
+      containers:
+        - name: fraud-service
+          image: neobank/fraud-service:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: { name: neobank-config }
+            - secretRef: { name: neobank-secrets }
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres:5432/neobank_fraud
+          ports: [{ containerPort: 8084 }]
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: 8084 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: { cpu: "100m", memory: "320Mi" }
+            limits: { cpu: "500m", memory: "640Mi" }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-service
+  namespace: neobank
+spec:
+  selector: { app: fraud-service }
+  ports: [{ port: 8084, targetPort: 8084 }]

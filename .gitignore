@@ -1,0 +1,18 @@
+# Build output
+target/
+*.class
+*.jar
+frontend/dist/
+frontend/node_modules/
+*.tsbuildinfo
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Logs & local secrets - never commit .env (generate it with scripts/bootstrap-env.sh)
+*.log
+.env
+!.env.example

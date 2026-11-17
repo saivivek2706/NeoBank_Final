@@ -1,0 +1,395 @@
+# NeoBank - local full stack.
+#
+#   ./scripts/bootstrap-env.sh      # once: generates .env with fresh random secrets (never committed)
+#   docker compose up --build       # add COMPOSE_PROFILES=observability (default in .env) for Grafana/Prometheus/Kafka UI
+#
+# Every secret comes from .env; there are no credentials baked into this file.
+
+x-common-env: &common-env
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka/
+  SPRING_CLOUD_CONFIG_URI: http://config-server:8888
+  ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+  SWAGGER_UI_ENABLED: ${SWAGGER_UI_ENABLED:-true}
+  # One JSON object per log line (Elastic Common Schema) with traceId / requestId in it - ready for Loki/ELK.
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: ${LOG_FORMAT-ecs}
+
+services:
+  # ---------- Infrastructure ----------
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      POSTGRES_DB: neobank
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-neobank}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER:-neobank}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD:?run scripts/bootstrap-env.sh}
+      MONGO_INITDB_DATABASE: neobank_audit
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongodata:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Kafka in KRaft mode - no Zookeeper needed (Zookeeper is legacy/deprecated
+  # as of Kafka 3.5+, KRaft is the current standard).
+  kafka:
+    image: confluentinc/cp-kafka:7.7.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:29092:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      CLUSTER_ID: NeoBankKRaftCluster01
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # Topics are created explicitly by kafka-init below (with partitions + dead-letter topics);
+      # auto-create stays on only as a safety net for ad-hoc topics.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # One-shot job: creates every saga topic and its "<topic>.DLT" dead-letter topic.
+  kafka-init:
+    image: confluentinc/cp-kafka:7.7.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./docker/kafka-init.sh:/kafka-init.sh:ro
+    entrypoint: ["bash", "/kafka-init.sh"]
+    environment:
+      BOOTSTRAP_SERVER: kafka:9092
+
+  zipkin:
+    image: openzipkin/zipkin:3
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9411:9411"
+
+  # ---- optional observability stack: COMPOSE_PROFILES=observability ----
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:v0.7.2
+    profiles: ["observability"]
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: neobank
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    profiles: ["observability"]
+    restart: unless-stopped
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    profiles: ["observability"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?run scripts/bootstrap-env.sh}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafanadata:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # ---------- Platform services ----------
+
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8761:8761"
+    environment:
+      <<: *common-env
+
+  config-server:
+    build:
+      context: .
+      dockerfile: config-server/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8888:8888"
+    environment:
+      <<: *common-env
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:5173}
+      REDIS_HOST: redis
+    depends_on:
+      eureka-server:
+        condition: service_healthy
+      config-server:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ---------- Business services ----------
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: auth-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/neobank_auth
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      SPRING_DATA_REDIS_HOST: redis
+      JWT_PRIVATE_KEY_B64: ${JWT_PRIVATE_KEY_B64:?run scripts/bootstrap-env.sh}
+      JWT_PUBLIC_KEY_B64: ${JWT_PUBLIC_KEY_B64:?run scripts/bootstrap-env.sh}
+      JWT_KEY_ID: ${JWT_KEY_ID:-neobank-key-1}
+      PII_ENCRYPTION_KEY_B64: ${PII_ENCRYPTION_KEY_B64:?run scripts/bootstrap-env.sh}
+      PII_BLIND_INDEX_KEY_B64: ${PII_BLIND_INDEX_KEY_B64:?run scripts/bootstrap-env.sh}
+      ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
+      ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  account-service:
+    build:
+      context: .
+      dockerfile: account-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      <<: *common-env
+      # DEMO ONLY: lets customers fund their own new accounts (an opening balance = money from outside the bank).
+      # Leave this off in any real environment - then only an ADMIN can record an opening deposit.
+      ACCOUNT_SELF_SERVICE_FUNDING: ${ACCOUNT_SELF_SERVICE_FUNDING:-true}
+      FEES_TRANSFER_FLAT: ${FEES_TRANSFER_FLAT:-0}
+      FEES_TRANSFER_PERCENT: ${FEES_TRANSFER_PERCENT:-0}
+      FEES_TRANSFER_MINIMUM: ${FEES_TRANSFER_MINIMUM:-0}
+      FEES_TRANSFER_MAXIMUM: ${FEES_TRANSFER_MAXIMUM:-0}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/neobank_account
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      eureka-server:
+        condition: service_healthy
+
+  transaction-service:
+    build:
+      context: .
+      dockerfile: transaction-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      <<: *common-env
+      # Per-account anti-abuse limits; raise the attempt cap for load tests (see load-tests/README.md).
+      VELOCITY_MAX_ATTEMPTS_HOUR: ${VELOCITY_MAX_ATTEMPTS_HOUR:-20}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/neobank_transaction
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+      SPRING_DATA_REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      eureka-server:
+        condition: service_healthy
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/neobank_notification
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      eureka-server:
+        condition: service_healthy
+
+  fraud-service:
+    build:
+      context: .
+      dockerfile: fraud-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/neobank_fraud
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+      SPRING_DATA_REDIS_HOST: redis
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      eureka-server:
+        condition: service_healthy
+
+  compliance-service:
+    build:
+      context: .
+      dockerfile: compliance-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      <<: *common-env
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/neobank_compliance
+      POSTGRES_USER: ${POSTGRES_USER:-neobank}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?run scripts/bootstrap-env.sh}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+      # Compliance policy (see compliance-service/src/main/resources/application.yml for what each one does)
+      AML_LARGE_TRANSACTION_THRESHOLD: ${AML_LARGE_TRANSACTION_THRESHOLD:-10000}
+      AML_STRUCTURING_MIN_COUNT: ${AML_STRUCTURING_MIN_COUNT:-3}
+      AML_HIGH_VELOCITY_COUNT: ${AML_HIGH_VELOCITY_COUNT:-10}
+      SANCTIONS_REVIEW_THRESHOLD: ${SANCTIONS_REVIEW_THRESHOLD:-0.88}
+      SANCTIONS_FREEZE_ON_POTENTIAL_MATCH: ${SANCTIONS_FREEZE_ON_POTENTIAL_MATCH:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      eureka-server:
+        condition: service_healthy
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: audit-service/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      <<: *common-env
+      SPRING_DATA_MONGODB_URI: mongodb://${MONGO_USER:-neobank}:${MONGO_PASSWORD:?run scripts/bootstrap-env.sh}@mongo:27017/neobank_audit?authSource=admin
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_JWKS_URI: ${JWT_JWKS_URI:-http://auth-service:8080/.well-known/jwks.json}
+    depends_on:
+      mongo:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+      eureka-server:
+        condition: service_healthy
+
+  # ---------- Frontend ----------
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:8080"
+    depends_on:
+      - api-gateway
+
+volumes:
+  pgdata:
+  mongodata:
+  grafanadata:

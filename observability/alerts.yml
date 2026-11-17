@@ -1,0 +1,109 @@
+# Prometheus alerting rules for the things that mean "money may be wrong or stuck".
+# Loaded via rule_files in prometheus.yml; view firing alerts at http://localhost:9090/alerts.
+groups:
+  - name: neobank-saga
+    rules:
+      - alert: OutboxEventDead
+        expr: sum by (job) (neobank_outbox_dead) > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }} has outbox events that exhausted their retries"
+          description: "An event never reached Kafka. The related transfer is stuck - see docs/runbook.md#dead-outbox-events."
+
+      - alert: OutboxBacklogGrowing
+        expr: sum by (job) (neobank_outbox_pending) > 500
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.job }} outbox backlog above 500 for 5m (relay or Kafka is behind)"
+
+      - alert: KafkaMessageDeadLettered
+        expr: sum by (job, topic) (increase(neobank_kafka_dead_letters_total[10m])) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }} dead-lettered a message from {{ $labels.topic }}"
+          description: "A saga event failed all retries and is parked on {{ $labels.topic }}.DLT - see docs/runbook.md#dead-letter-topics."
+
+      - alert: LedgerReconciliationDrift
+        expr: increase(neobank_ledger_reconciliation_drift_total[15m]) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "An account's cached balance disagrees with its ledger"
+
+      - alert: TransferSuccessRatioLow
+        expr: |
+          sum(increase(neobank_transfers_completed_total[15m]))
+            / clamp_min(sum(increase(neobank_transfers_started_total[15m])), 1) < 0.8
+          and sum(increase(neobank_transfers_started_total[15m])) >= 10
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "Less than 80% of transfers completed in the last 15 minutes"
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.job }} is down"
+
+  - name: neobank-ledger
+    rules:
+      - alert: LedgerUnbalanced
+        expr: sum(neobank_ledger_unbalanced_journals) > 0 or sum(neobank_ledger_unbalanced_currencies) > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "The double-entry ledger does not balance"
+          description: "A journal or a currency's trial balance has debits != credits. Stop money movement and follow docs/runbook.md#ledger-integrity."
+
+      - alert: LedgerAccountDrift
+        expr: sum(neobank_ledger_account_drift) > 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "An account's cached balance differs from its postings"
+          description: "See docs/runbook.md#ledger-integrity."
+
+      - alert: TransferStuckInSettlement
+        expr: sum(neobank_ledger_stuck_transfers) > 0
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Money is stuck in SETTLEMENT: a transfer was debited but neither credited nor reversed"
+          description: "See docs/runbook.md#ledger-integrity (stuck transfers)."
+
+      - alert: ExternalReconciliationBreaksOpen
+        expr: sum(neobank_reconciliation_open_breaks) > 0
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "Unresolved differences between the ledger and the settlement bank statement"
+          description: "See docs/runbook.md#external-reconciliation-breaks."
+
+  - name: neobank-compliance
+    rules:
+      - alert: AuditChainBroken
+        expr: min(neobank_audit_chain_valid) < 1
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "The audit trail's hash chain failed verification - possible tampering"
+          description: "Run GET /api/v1/audit/chain/verify (ADMIN) to see the first broken record, then follow docs/runbook.md#audit-chain-integrity."
+
+      - alert: SanctionsStrongMatch
+        expr: sum(increase(neobank_sanctions_hits_total{outcome="STRONG_MATCH"}[10m])) > 0
+        labels: { severity: critical }
+        annotations:
+          summary: "A customer matched a sanctions list exactly - the account was frozen automatically"
+          description: "A CRITICAL case is open. Review it within the SLA: docs/runbook.md#sanctions-hits."
+
+      - alert: ComplianceCasesOverdue
+        expr: sum(neobank_compliance_cases_overdue) > 0
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Compliance cases are past their SLA due date"
+          description: "See docs/runbook.md#compliance-cases."
+

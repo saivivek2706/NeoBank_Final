@@ -1,0 +1,268 @@
+server:
+  port: 8000
+
+spring:
+  application:
+    name: api-gateway
+
+  config:
+    import: "optional:configserver:http://localhost:8888"
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false   # explicit routes below, safer than auto-magic-routing every registered service
+      routes:
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authServiceCB
+                fallbackUri: forward:/fallback/auth
+            - name: RequestRateLimiter
+              args:
+                # 10 requests/sec sustained, burst up to 20, per client IP - blunts
+                # brute-force/credential-stuffing against login+register at the edge,
+                # on top of the per-account lockout inside auth-service itself.
+                redis-rate-limiter.replenishRate: 2
+                redis-rate-limiter.burstCapacity: 10
+                key-resolver: "#{@clientIpKeyResolver}"
+
+        - id: account-service
+          uri: lb://account-service
+          predicates:
+            - Path=/api/v1/accounts/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: accountServiceCB
+                fallbackUri: forward:/fallback/account
+
+        - id: account-service-ledger
+          uri: lb://account-service
+          predicates:
+            - Path=/api/v1/ledger/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: accountServiceCB
+                fallbackUri: forward:/fallback/account
+
+        - id: transaction-service-http
+          uri: lb://transaction-service
+          predicates:
+            - Path=/api/v1/transactions/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: transactionServiceCB
+                fallbackUri: forward:/fallback/transaction
+
+        - id: transaction-service-ws
+          uri: lb:ws://transaction-service
+          predicates:
+            - Path=/ws/transactions/**
+          filters:
+            - RewritePath=/ws/transactions/(?<segment>.*), /ws/${segment}
+
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/v1/notifications/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notificationServiceCB
+                fallbackUri: forward:/fallback/notification
+
+        - id: fraud-service-http
+          uri: lb://fraud-service
+          predicates:
+            - Path=/api/v1/fraud-alerts/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: fraudServiceCB
+                fallbackUri: forward:/fallback/fraud
+
+        - id: fraud-service-ws
+          uri: lb:ws://fraud-service
+          predicates:
+            - Path=/ws/fraud/**
+          filters:
+            - RewritePath=/ws/fraud/(?<segment>.*), /ws/${segment}
+
+        - id: audit-service
+          uri: lb://audit-service
+          predicates:
+            - Path=/api/v1/audit/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: auditServiceCB
+                fallbackUri: forward:/fallback/audit
+
+        - id: compliance-service
+          uri: lb://compliance-service
+          predicates:
+            - Path=/api/v1/compliance/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: complianceServiceCB
+                fallbackUri: forward:/fallback/compliance
+
+        # OpenAPI spec of auth-service, republished through the gateway for the aggregated Swagger UI.
+        - id: docs-auth
+          uri: lb://auth-service
+          predicates:
+            - Path=/docs/auth/**
+          filters:
+            - RewritePath=/docs/auth/(?<segment>.*), /${segment}
+
+        # OpenAPI spec of account-service, republished through the gateway for the aggregated Swagger UI.
+        - id: docs-account
+          uri: lb://account-service
+          predicates:
+            - Path=/docs/account/**
+          filters:
+            - RewritePath=/docs/account/(?<segment>.*), /${segment}
+
+        # OpenAPI spec of transaction-service, republished through the gateway for the aggregated Swagger UI.
+        - id: docs-transaction
+          uri: lb://transaction-service
+          predicates:
+            - Path=/docs/transaction/**
+          filters:
+            - RewritePath=/docs/transaction/(?<segment>.*), /${segment}
+
+        # OpenAPI spec of notification-service, republished through the gateway for the aggregated Swagger UI.
+        - id: docs-notification
+          uri: lb://notification-service
+          predicates:
+            - Path=/docs/notification/**
+          filters:
+            - RewritePath=/docs/notification/(?<segment>.*), /${segment}
+
+        # OpenAPI spec of fraud-service, republished through the gateway for the aggregated Swagger UI.
+        - id: docs-fraud
+          uri: lb://fraud-service
+          predicates:
+            - Path=/docs/fraud/**
+          filters:
+            - RewritePath=/docs/fraud/(?<segment>.*), /${segment}
+
+        # OpenAPI spec of compliance-service, republished through the gateway for the aggregated Swagger UI.
+        - id: docs-compliance
+          uri: lb://compliance-service
+          predicates:
+            - Path=/docs/compliance/**
+          filters:
+            - RewritePath=/docs/compliance/(?<segment>.*), /${segment}
+
+        # OpenAPI spec of audit-service, republished through the gateway for the aggregated Swagger UI.
+        - id: docs-audit
+          uri: lb://audit-service
+          predicates:
+            - Path=/docs/audit/**
+          filters:
+            - RewritePath=/docs/audit/(?<segment>.*), /${segment}
+
+security:
+  jwt:
+    jwks-uri: ${JWT_JWKS_URI:http://auth-service:8080/.well-known/jwks.json}
+  cors:
+    # Comma-separated allow-list, never "*". In real deployments the browser
+    # never actually crosses origins (nginx/Vite proxy /api server-side), so
+    # this exists purely as defense-in-depth in case the gateway is ever
+    # reachable directly.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      authServiceCB:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+      accountServiceCB:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      transactionServiceCB:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      notificationServiceCB:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      fraudServiceCB:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      auditServiceCB:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+      complianceServiceCB:
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  zipkin:
+    tracing:
+      endpoint: ${ZIPKIN_ENDPOINT:http://localhost:9411/api/v2/spans}
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,prometheus,metrics
+
+logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
+  level:
+    org.springframework.cloud.gateway: INFO
+
+# Aggregated Swagger UI for the whole platform at /swagger-ui.html (one drop-down entry per service).
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_UI_ENABLED:true}
+  swagger-ui:
+    enabled: ${SWAGGER_UI_ENABLED:true}
+    urls:
+      - name: auth-service
+        url: /docs/auth/v3/api-docs
+      - name: account-service
+        url: /docs/account/v3/api-docs
+      - name: transaction-service
+        url: /docs/transaction/v3/api-docs
+      - name: notification-service
+        url: /docs/notification/v3/api-docs
+      - name: fraud-service
+        url: /docs/fraud/v3/api-docs
+      - name: audit-service
+        url: /docs/audit/v3/api-docs
+      - name: compliance-service
+        url: /docs/compliance/v3/api-docs
