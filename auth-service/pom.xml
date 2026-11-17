@@ -82,7 +82,7 @@
             <!-- Used only to build the JWKS (public key) response; version managed by spring-boot-dependencies -->
             <groupId>com.nimbusds</groupId>
             <artifactId>nimbus-jose-jwt</artifactId>
-            <version>9.37.3</version>
+            <version>10.10</version>
         </dependency>
         <dependency>
             <groupId>io.github.resilience4j</groupId>
