@@ -20,7 +20,7 @@ COPY account-service account-service
 RUN --mount=type=cache,target=/root/.m2 mvn -q -pl account-service -am package -DskipTests -Dcheckstyle.skip=true -Djacoco.skip=true
 
 # ---- runtime stage ----
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
 # Run as an unprivileged user: a compromised service must not get root inside the container.
