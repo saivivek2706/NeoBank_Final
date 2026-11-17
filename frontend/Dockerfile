@@ -1,5 +1,5 @@
 # docker build -f frontend/Dockerfile -t neobank/frontend frontend
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
