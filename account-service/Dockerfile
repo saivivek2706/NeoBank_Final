@@ -1,6 +1,6 @@
 # Build from repo root: docker build -f account-service/Dockerfile -t neobank/account-service .
 # ---- build stage ----
-FROM maven:3.9-eclipse-temurin-21 AS builder
+FROM maven:3.9-eclipse-temurin-26 AS builder
 WORKDIR /build
 COPY pom.xml .
 COPY eureka-server/pom.xml eureka-server/pom.xml
