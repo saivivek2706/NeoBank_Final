@@ -13,7 +13,6 @@ import com.neobank.account.repository.LedgerEntryRepository;
 import com.neobank.account.repository.OutboxEventRepository;
 import com.neobank.account.repository.ProcessedEventRepository;
 import io.micrometer.core.instrument.MeterRegistry;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,7 +23,6 @@ import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
 @Service
-@RequiredArgsConstructor
 public class AccountService {
 
     private final AccountRepository accountRepository;
@@ -36,6 +34,29 @@ public class AccountService {
     private final HoldService holdService;
     private final FeeCalculator feeCalculator;
     private final MeterRegistry meterRegistry;
+
+    /**
+     * Explicit constructor keeps dependency wiring unambiguous for both Spring and unit tests.
+     */
+    public AccountService(AccountRepository accountRepository,
+                          OutboxEventRepository outboxEventRepository,
+                          ProcessedEventRepository processedEventRepository,
+                          LedgerEntryRepository ledgerEntryRepository,
+                          ObjectMapper objectMapper,
+                          JournalService journalService,
+                          HoldService holdService,
+                          FeeCalculator feeCalculator,
+                          MeterRegistry meterRegistry) {
+        this.accountRepository = accountRepository;
+        this.outboxEventRepository = outboxEventRepository;
+        this.processedEventRepository = processedEventRepository;
+        this.ledgerEntryRepository = ledgerEntryRepository;
+        this.objectMapper = objectMapper;
+        this.journalService = journalService;
+        this.holdService = holdService;
+        this.feeCalculator = feeCalculator;
+        this.meterRegistry = meterRegistry;
+    }
 
     @Transactional
     public Account openAccount(CreateAccountRequest req) {
