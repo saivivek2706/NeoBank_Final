@@ -39,8 +39,8 @@ class EurekaServerApplicationTest {
 
     @Test
     void prometheusEndpointIsExposed() {
-        // Regression test: the endpoint was exposed in YAML but returned 404 because the Prometheus registry
-        // dependency was missing, which left every Grafana panel empty.
+        // Regression test: verify that the Prometheus registry is active and the scrape endpoint
+        // returns JVM metrics for Prometheus/Grafana monitoring.
         ResponseEntity<String> response = rest.getForEntity("/actuator/prometheus", String.class);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
