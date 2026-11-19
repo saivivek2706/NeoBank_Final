@@ -1,10 +1,6 @@
 package com.neobank.fraud.domain;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -12,9 +8,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "fraud_alerts")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class FraudAlert {
 
     @Id
@@ -43,6 +36,46 @@ public class FraudAlert {
 
     @Column(nullable = false)
     private Instant flaggedAt;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public FraudAlert() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getTransactionId() {
+        return this.transactionId;
+    }
+
+    public UUID getAccountId() {
+        return this.accountId;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
+
+    public FraudRuleType getRuleTriggered() {
+        return this.ruleTriggered;
+    }
+
+    public FraudSeverity getSeverity() {
+        return this.severity;
+    }
+
+    public String getDetails() {
+        return this.details;
+    }
+
+    public Instant getFlaggedAt() {
+        return this.flaggedAt;
+    }
 
     public static FraudAlert of(UUID transactionId, UUID accountId, BigDecimal amount,
                                  FraudRuleType rule, FraudSeverity severity, String details) {
