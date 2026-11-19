@@ -6,10 +6,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 
@@ -18,9 +14,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "aml_alerts")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class AmlAlert {
 
     @Id
@@ -55,6 +48,58 @@ public class AmlAlert {
 
     @Column(nullable = false)
     private Instant createdAt;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public AmlAlert() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public String getRuleCode() {
+        return this.ruleCode;
+    }
+
+    public UUID getAccountId() {
+        return this.accountId;
+    }
+
+    public UUID getTransactionId() {
+        return this.transactionId;
+    }
+
+    public Severity getSeverity() {
+        return this.severity;
+    }
+
+    public int getScore() {
+        return this.score;
+    }
+
+    public String getSummary() {
+        return this.summary;
+    }
+
+    public String getDetails() {
+        return this.details;
+    }
+
+    public String getDedupKey() {
+        return this.dedupKey;
+    }
+
+    public UUID getCaseId() {
+        return this.caseId;
+    }
+
+    public Instant getCreatedAt() {
+        return this.createdAt;
+    }
 
     public static AmlAlert of(String ruleCode, UUID accountId, UUID transactionId, Severity severity, int score,
                               String summary, String detailsJson, String dedupKey) {
