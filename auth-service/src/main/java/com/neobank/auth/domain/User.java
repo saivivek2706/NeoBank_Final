@@ -2,10 +2,6 @@ package com.neobank.auth.domain;
 
 import com.neobank.auth.security.EncryptedStringConverter;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -13,9 +9,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class User {
 
     @Id
@@ -59,6 +52,58 @@ public class User {
     /** If set and in the future, the account is locked out and login must be rejected regardless of password. */
     @Column
     private Instant lockedUntil;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public User() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public String getEmail() {
+        return this.email;
+    }
+
+    public String getEmailHash() {
+        return this.emailHash;
+    }
+
+    public String getPasswordHash() {
+        return this.passwordHash;
+    }
+
+    public String getFullName() {
+        return this.fullName;
+    }
+
+    public Role getRole() {
+        return this.role;
+    }
+
+    public boolean isEnabled() {
+        return this.enabled;
+    }
+
+    public Instant getCreatedAt() {
+        return this.createdAt;
+    }
+
+    public int getFailedLoginAttempts() {
+        return this.failedLoginAttempts;
+    }
+
+    public Instant getLockedUntil() {
+        return this.lockedUntil;
+    }
+
+    private void setLockedUntil(Instant lockedUntil) {
+        this.lockedUntil = lockedUntil;
+    }
 
     public static User register(String email, String emailHash, String passwordHash, String fullName) {
         User user = new User();
