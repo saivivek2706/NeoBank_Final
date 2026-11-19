@@ -1,10 +1,6 @@
 package com.neobank.notification.domain;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -20,9 +16,6 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "notifications")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class Notification {
 
     @Id
@@ -44,6 +37,38 @@ public class Notification {
 
     @Column(nullable = false)
     private Instant sentAt;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public Notification() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getTransactionId() {
+        return this.transactionId;
+    }
+
+    public UUID getAccountId() {
+        return this.accountId;
+    }
+
+    public NotificationType getType() {
+        return this.type;
+    }
+
+    public String getMessage() {
+        return this.message;
+    }
+
+    public Instant getSentAt() {
+        return this.sentAt;
+    }
 
     public static Notification of(UUID transactionId, UUID accountId, NotificationType type,
                                    BigDecimal amount, String currency) {
