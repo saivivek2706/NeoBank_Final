@@ -1,10 +1,6 @@
 package com.neobank.transaction.domain;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -12,9 +8,6 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class Transaction {
 
     @Id
@@ -54,6 +47,62 @@ public class Transaction {
     /** SHA-256 of the request's business fields - detects a key reused for a different transfer. */
     @Column(length = 64)
     private String requestFingerprint;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public Transaction() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getFromAccountId() {
+        return this.fromAccountId;
+    }
+
+    public UUID getToAccountId() {
+        return this.toAccountId;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
+
+    public String getCurrency() {
+        return this.currency;
+    }
+
+    public TransactionStatus getStatus() {
+        return this.status;
+    }
+
+    public String getFailureReason() {
+        return this.failureReason;
+    }
+
+    public Instant getCreatedAt() {
+        return this.createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return this.updatedAt;
+    }
+
+    public UUID getRequestedBy() {
+        return this.requestedBy;
+    }
+
+    public String getIdempotencyKey() {
+        return this.idempotencyKey;
+    }
+
+    public String getRequestFingerprint() {
+        return this.requestFingerprint;
+    }
 
     public static Transaction initiate(UUID fromAccountId, UUID toAccountId, BigDecimal amount, String currency,
                                        UUID requestedBy, String idempotencyKey, String requestFingerprint) {
