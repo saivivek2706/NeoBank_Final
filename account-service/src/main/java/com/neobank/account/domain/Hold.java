@@ -8,10 +8,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -24,9 +20,6 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "holds")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class Hold {
 
     @Id
@@ -64,6 +57,62 @@ public class Hold {
     private Instant resolvedAt;
 
     private UUID captureJournalId;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public Hold() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public UUID getAccountId() {
+        return this.accountId;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
+
+    public BigDecimal getCapturedAmount() {
+        return this.capturedAmount;
+    }
+
+    public String getCurrency() {
+        return this.currency;
+    }
+
+    public HoldStatus getStatus() {
+        return this.status;
+    }
+
+    public String getReference() {
+        return this.reference;
+    }
+
+    public String getReason() {
+        return this.reason;
+    }
+
+    public Instant getExpiresAt() {
+        return this.expiresAt;
+    }
+
+    public Instant getCreatedAt() {
+        return this.createdAt;
+    }
+
+    public Instant getResolvedAt() {
+        return this.resolvedAt;
+    }
+
+    public UUID getCaptureJournalId() {
+        return this.captureJournalId;
+    }
 
     public static Hold place(UUID accountId, BigDecimal amount, String currency, String reference, String reason,
                              Instant expiresAt) {
