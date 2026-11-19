@@ -6,10 +6,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -18,9 +14,6 @@ import java.util.UUID;
 /** Header of an uploaded external (settlement bank) statement for one date and currency. */
 @Entity
 @Table(name = "external_statements")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class ExternalStatement {
 
     @Id
@@ -44,6 +37,42 @@ public class ExternalStatement {
 
     @Column(nullable = false)
     private int lineCount;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public ExternalStatement() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public String getSource() {
+        return this.source;
+    }
+
+    public LocalDate getStatementDate() {
+        return this.statementDate;
+    }
+
+    public String getCurrency() {
+        return this.currency;
+    }
+
+    public UUID getUploadedBy() {
+        return this.uploadedBy;
+    }
+
+    public Instant getUploadedAt() {
+        return this.uploadedAt;
+    }
+
+    public int getLineCount() {
+        return this.lineCount;
+    }
 
     public static ExternalStatement of(String source, LocalDate statementDate, String currency, UUID uploadedBy,
                                        int lineCount) {
