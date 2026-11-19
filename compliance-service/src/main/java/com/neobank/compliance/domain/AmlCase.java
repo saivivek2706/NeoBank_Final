@@ -9,10 +9,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -28,9 +24,6 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "aml_cases")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class AmlCase {
 
     @Id
@@ -82,6 +75,82 @@ public class AmlCase {
 
     @Version
     private long version;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public AmlCase() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public String getCaseNumber() {
+        return this.caseNumber;
+    }
+
+    public UUID getSubjectAccountId() {
+        return this.subjectAccountId;
+    }
+
+    public CaseType getCaseType() {
+        return this.caseType;
+    }
+
+    public CaseStatus getStatus() {
+        return this.status;
+    }
+
+    public Severity getPriority() {
+        return this.priority;
+    }
+
+    public UUID getAssignee() {
+        return this.assignee;
+    }
+
+    public UUID getEscalatedBy() {
+        return this.escalatedBy;
+    }
+
+    public boolean isAccountFrozen() {
+        return this.accountFrozen;
+    }
+
+    public String getSummary() {
+        return this.summary;
+    }
+
+    public Disposition getDisposition() {
+        return this.disposition;
+    }
+
+    public UUID getClosedBy() {
+        return this.closedBy;
+    }
+
+    public Instant getOpenedAt() {
+        return this.openedAt;
+    }
+
+    public Instant getDueAt() {
+        return this.dueAt;
+    }
+
+    public Instant getClosedAt() {
+        return this.closedAt;
+    }
+
+    public long getVersion() {
+        return this.version;
+    }
+
+    private void setVersion(long version) {
+        this.version = version;
+    }
 
     public static AmlCase open(String caseNumber, UUID subjectAccountId, CaseType type, Severity priority,
                                String summary, Instant openedAt, Instant dueAt) {
