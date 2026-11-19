@@ -1,10 +1,6 @@
 package com.neobank.account.domain;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -21,9 +17,6 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "accounts")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class Account {
 
     @Id
@@ -58,6 +51,58 @@ public class Account {
 
     @Column(nullable = false)
     private Instant createdAt;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public Account() {
+    }
+
+    public UUID getId() {
+        return this.id;
+    }
+
+    private void setId(UUID id) {
+        this.id = id;
+    }
+
+    public String getAccountNumber() {
+        return this.accountNumber;
+    }
+
+    public UUID getOwnerId() {
+        return this.ownerId;
+    }
+
+    public String getOwnerName() {
+        return this.ownerName;
+    }
+
+    public BigDecimal getBalance() {
+        return this.balance;
+    }
+
+    public String getCurrency() {
+        return this.currency;
+    }
+
+    public AccountStatus getStatus() {
+        return this.status;
+    }
+
+    public AccountType getAccountType() {
+        return this.accountType;
+    }
+
+    public Long getVersion() {
+        return this.version;
+    }
+
+    private void setVersion(Long version) {
+        this.version = version;
+    }
+
+    public Instant getCreatedAt() {
+        return this.createdAt;
+    }
 
     public static Account open(String accountNumber, UUID ownerId, String ownerName,
                                 AccountType type, String currency, BigDecimal openingBalance) {
