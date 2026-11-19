@@ -1,9 +1,5 @@
 package com.neobank.audit.domain;
 
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -31,9 +27,6 @@ import java.util.UUID;
  * what makes that visible.) Records written before the chain existed have no sequence and are reported as "unchained".
  */
 @Document(collection = "audit_events")
-@Getter
-@Setter(AccessLevel.PRIVATE)
-@NoArgsConstructor
 public class AuditEvent {
 
     @Id
@@ -66,6 +59,70 @@ public class AuditEvent {
 
     /** SHA-256 over this record's content and previousHash - see AuditHasher. */
     private String hash;
+
+    /** Public no-argument constructor required by JPA/MongoDB. */
+    public AuditEvent() {
+    }
+
+    public String getId() {
+        return this.id;
+    }
+
+    public UUID getEventId() {
+        return this.eventId;
+    }
+
+    public UUID getTransactionId() {
+        return this.transactionId;
+    }
+
+    public UUID getAccountId() {
+        return this.accountId;
+    }
+
+    public String getTopic() {
+        return this.topic;
+    }
+
+    public String getEventType() {
+        return this.eventType;
+    }
+
+    public BigDecimal getAmount() {
+        return this.amount;
+    }
+
+    public String getCurrency() {
+        return this.currency;
+    }
+
+    public String getReason() {
+        return this.reason;
+    }
+
+    public Instant getOccurredAt() {
+        return this.occurredAt;
+    }
+
+    public Instant getRecordedAt() {
+        return this.recordedAt;
+    }
+
+    public String getRawPayload() {
+        return this.rawPayload;
+    }
+
+    public Long getSequence() {
+        return this.sequence;
+    }
+
+    public String getPreviousHash() {
+        return this.previousHash;
+    }
+
+    public String getHash() {
+        return this.hash;
+    }
 
     public static AuditEvent record(UUID eventId, UUID transactionId, UUID accountId, String topic,
                                      String eventType, BigDecimal amount, String currency, String reason,
