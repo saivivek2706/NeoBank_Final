@@ -13,7 +13,6 @@ import com.neobank.account.repository.LedgerEntryRepository;
 import com.neobank.account.repository.OutboxEventRepository;
 import com.neobank.account.repository.ProcessedEventRepository;
 import io.micrometer.core.instrument.MeterRegistry;
-import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -271,16 +270,22 @@ public class AccountService {
         return processedEventRepository.existsById(eventId);
     }
 
-    @SneakyThrows
     private void publish(String topic, String aggregateType, String aggregateId, String eventType, TransactionEvent event) {
-        String json = objectMapper.writeValueAsString(event);
-        outboxEventRepository.save(OutboxEvent.create(aggregateType, aggregateId, eventType, topic, json));
+        try {
+            String json = objectMapper.writeValueAsString(event);
+            outboxEventRepository.save(OutboxEvent.create(aggregateType, aggregateId, eventType, topic, json));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize transaction event for outbox", ex);
+        }
     }
 
-    @SneakyThrows
     private void publishJson(String topic, String aggregateType, String aggregateId, String eventType, Object event) {
-        outboxEventRepository.save(OutboxEvent.create(aggregateType, aggregateId, eventType, topic,
-                objectMapper.writeValueAsString(event)));
+        try {
+            String json = objectMapper.writeValueAsString(event);
+            outboxEventRepository.save(OutboxEvent.create(aggregateType, aggregateId, eventType, topic, json));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize event for outbox", ex);
+        }
     }
 
     private String generateAccountNumber() {
