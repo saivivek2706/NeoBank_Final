@@ -40,15 +40,41 @@ class JournalServiceTest {
     private final UUID settlementId = UUID.randomUUID();
     private final UUID feeIncomeId = UUID.randomUUID();
     private final UUID cashId = UUID.randomUUID();
-
     @BeforeEach
     void setUp() {
-        journalService = new JournalService(journalEntryRepository, postingRepository, glAccountService);
-        account = Account.open("NB100000001", UUID.randomUUID(), "Alice", AccountType.SAVINGS, "SGD", new BigDecimal("500.00"));
-        org.mockito.Mockito.lenient().when(journalEntryRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        org.mockito.Mockito.lenient().when(glAccountService.system(SystemAccount.SETTLEMENT, "SGD")).thenReturn(gl(settlementId));
-        org.mockito.Mockito.lenient().when(glAccountService.system(SystemAccount.FEE_INCOME, "SGD")).thenReturn(gl(feeIncomeId));
-        org.mockito.Mockito.lenient().when(glAccountService.system(SystemAccount.EXTERNAL_FUNDING, "SGD")).thenReturn(gl(cashId));
+        journalService = new JournalService(
+                journalEntryRepository, postingRepository, glAccountService);
+
+        account = Account.open(
+                "NB100000001",
+                UUID.randomUUID(),
+                "Alice",
+                AccountType.SAVINGS,
+                "SGD",
+                new BigDecimal("500.00"));
+
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                account, "id", UUID.randomUUID());
+
+        GlAccount settlement = gl(settlementId);
+        GlAccount feeIncome = gl(feeIncomeId);
+        GlAccount externalFunding = gl(cashId);
+
+        org.mockito.Mockito.lenient()
+                .when(journalEntryRepository.save(any()))
+                .thenAnswer(inv -> inv.getArgument(0));
+
+        org.mockito.Mockito.lenient()
+                .when(glAccountService.system(SystemAccount.SETTLEMENT, "SGD"))
+                .thenReturn(settlement);
+
+        org.mockito.Mockito.lenient()
+                .when(glAccountService.system(SystemAccount.FEE_INCOME, "SGD"))
+                .thenReturn(feeIncome);
+
+        org.mockito.Mockito.lenient()
+                .when(glAccountService.system(SystemAccount.EXTERNAL_FUNDING, "SGD"))
+                .thenReturn(externalFunding);
     }
 
     private static GlAccount gl(UUID id) {
@@ -180,7 +206,10 @@ class JournalServiceTest {
         UUID txId = UUID.randomUUID();
         UUID legacyId = UUID.randomUUID();
         when(journalEntryRepository.findByTransactionIdAndJournalType(txId, JournalType.TRANSFER_DEBIT)).thenReturn(Optional.empty());
-        when(glAccountService.system(SystemAccount.LEGACY_CLEARING, "SGD")).thenReturn(gl(legacyId));
+        GlAccount legacyClearing = gl(legacyId);
+
+        when(glAccountService.system(SystemAccount.LEGACY_CLEARING, "SGD"))
+                .thenReturn(legacyClearing);
 
         JournalService.ReversalResult result = journalService.postTransferReversal(account, txId, new BigDecimal("40.00"));
 

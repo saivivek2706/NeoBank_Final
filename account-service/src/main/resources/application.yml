@@ -73,6 +73,9 @@ ledger:
     # rather than in every account-service replica, and page on mismatch
     # instead of just logging.
     interval-ms: ${LEDGER_RECONCILIATION_INTERVAL_MS:300000}
+  audit:
+    cron: "0 5 * * * *"      # trial balance + drift + stuck-transfer check, hourly
+    stuck-after: PT10M       # a transfer debited this long ago with no credit/reversal is "stuck in settlement"
 
 management:
   tracing:
@@ -121,7 +124,3 @@ holds:
   max-ttl: P30D
   expiry-sweep-ms: 60000
 
-ledger:
-  audit:
-    cron: "0 5 * * * *"      # trial balance + drift + stuck-transfer check, hourly
-    stuck-after: PT10M       # a transfer debited this long ago with no credit/reversal is "stuck in settlement"

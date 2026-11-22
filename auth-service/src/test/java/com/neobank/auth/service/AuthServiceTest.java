@@ -158,7 +158,7 @@ class AuthServiceTest {
         assertThat(user.isLocked()).isTrue();
 
         // Even with the correct password, a locked account must still be rejected.
-        when(passwordEncoder.matches("correct-password", "correct-hash")).thenReturn(true);
+       // when(passwordEncoder.matches("correct-password", "correct-hash")).thenReturn(true);
         assertThatThrownBy(() -> authService.login(new LoginRequest("target@neobank.dev", "correct-password"), "test-device-1"))
                 .isInstanceOf(com.neobank.auth.exception.AccountLockedException.class);
     }

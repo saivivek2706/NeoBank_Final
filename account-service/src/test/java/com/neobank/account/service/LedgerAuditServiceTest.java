@@ -159,10 +159,12 @@ class LedgerAuditServiceTest {
         UUID cash = UUID.randomUUID();
         UUID settlement = UUID.randomUUID();
         UUID fees = UUID.randomUUID();
-        when(glAccountRepository.findAll()).thenReturn(List.of(
-                gl(cash, "EXTERNAL_FUNDING", GlAccountType.ASSET),
-                gl(settlement, "SETTLEMENT", GlAccountType.LIABILITY),
-                gl(fees, "FEE_INCOME", GlAccountType.INCOME)));
+        GlAccount cashAccount = gl(cash, "EXTERNAL_FUNDING", GlAccountType.ASSET);
+        GlAccount settlementAccount = gl(settlement, "SETTLEMENT", GlAccountType.LIABILITY);
+        GlAccount feeAccount = gl(fees, "FEE_INCOME", GlAccountType.INCOME);
+
+        when(glAccountRepository.findAll()).thenReturn(
+                List.of(cashAccount, settlementAccount, feeAccount));
         when(postingRepository.glTotals()).thenReturn(List.of(
                 new Object[]{cash, PostingDirection.DEBIT, new BigDecimal("1000.00")},
                 new Object[]{cash, PostingDirection.CREDIT, new BigDecimal("100.00")},
@@ -182,8 +184,10 @@ class LedgerAuditServiceTest {
 
     @Test
     void anAccountWithNoPostingsYetStillAppearsWithAZeroBalance() {
-        when(glAccountRepository.findAll()).thenReturn(List.of(gl(UUID.randomUUID(), "SETTLEMENT", GlAccountType.LIABILITY)));
+        GlAccount settlementAccount = gl(
+                UUID.randomUUID(), "SETTLEMENT", GlAccountType.LIABILITY);
 
+        when(glAccountRepository.findAll()).thenReturn(List.of(settlementAccount));
         assertThat(service.trialBalance().glAccounts()).singleElement()
                 .satisfies(b -> assertThat(b.balance()).isEqualByComparingTo("0"));
     }

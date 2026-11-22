@@ -11,6 +11,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import org.springframework.context.ApplicationContext;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 /** Boots the real registry and checks the endpoints the rest of the platform (and Docker's HEALTHCHECK) depend on. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -39,11 +41,42 @@ class EurekaServerApplicationTest {
 
     @Test
     void prometheusEndpointIsExposed() {
-        // Regression test: verify that the Prometheus registry is active and the scrape endpoint
-        // returns JVM metrics for Prometheus/Grafana monitoring.
-        ResponseEntity<String> response = rest.getForEntity("/actuator/prometheus", String.class);
+        ResponseEntity<String> response =
+                rest.getForEntity("/actuator/prometheus", String.class);
 
-        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(response.getBody()).contains("jvm_memory_used_bytes");
+        System.out.println("Prometheus HTTP Status: "
+                + response.getStatusCode());
+
+        System.out.println("Prometheus Response Body: "
+                + response.getBody());
+
+        assertThat(response.getStatusCode().is2xxSuccessful())
+                .as("Prometheus endpoint response: %s", response.getBody())
+                .isTrue();
+
+        assertThat(response.getBody())
+                .contains("jvm_memory_used_bytes");
     }
+    @Autowired
+    private ApplicationContext applicationContext;
+
+    @Test
+    void diagnosePrometheusConfiguration() {
+        String[] registryBeans =
+                applicationContext.getBeanNamesForType(
+                        PrometheusMeterRegistry.class
+                );
+
+        System.out.println("PROMETHEUS REGISTRY BEANS: "
+                + java.util.Arrays.toString(registryBeans));
+
+        String[] endpointBeans =
+                applicationContext.getBeanNamesForAnnotation(
+                        org.springframework.boot.actuate.endpoint.annotation.Endpoint.class
+                );
+
+        System.out.println("ACTUATOR ENDPOINT BEANS: "
+                + java.util.Arrays.toString(endpointBeans));
+    }
+
 }

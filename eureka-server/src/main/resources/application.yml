@@ -23,6 +23,12 @@ management:
     metrics:
       export:
         enabled: true
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
   endpoints:
     web:
       exposure:

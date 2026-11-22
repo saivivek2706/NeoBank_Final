@@ -65,6 +65,8 @@ class AccountServiceTest {
         lenient().when(journalService.postTransferCredit(any(), any(), any())).thenReturn(journal);
         account = Account.open("NB100000002", UUID.randomUUID(), "Bob Lee",
                 AccountType.SAVINGS, "SGD", new BigDecimal("500.00"));
+        org.springframework.test.util.ReflectionTestUtils.setField(
+                account, "id", UUID.randomUUID());
     }
 
     @Test
