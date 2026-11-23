@@ -2,6 +2,7 @@ package com.neobank.auth.security;
 
 import jakarta.persistence.AttributeConverter;
 import jakarta.persistence.Converter;
+import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.GCMParameterSpec;
@@ -14,6 +15,7 @@ import java.util.Base64;
 
 /** AES-256-GCM converter for TOTP secrets, using a key separate from PII encryption. */
 @Converter
+@Component
 public class EncryptedMfaSecretConverter implements AttributeConverter<String, String> {
 
     private static final String PREFIX = "enc:v1:";
