@@ -1,6 +1,7 @@
 package com.neobank.account.domain;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Setter;
 
 import java.math.BigDecimal;
@@ -18,7 +19,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "accounts")
-@Setter
+@Setter(AccessLevel.PRIVATE)
 public class Account {
 
     @Id
