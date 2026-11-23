@@ -19,16 +19,16 @@ public class OutboxEvent {
     @Id
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String aggregateType;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String aggregateId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String eventType;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 150)
     private String topic;
 
     // Plain TEXT column, not @Lob: Hibernate 6 maps @Lob String -> Postgres
@@ -48,6 +48,7 @@ public class OutboxEvent {
 
     private Instant sentAt;
 
+    @Column(nullable = false)
     private int attempts;
 
     public static OutboxEvent create(String aggregateType, String aggregateId,
