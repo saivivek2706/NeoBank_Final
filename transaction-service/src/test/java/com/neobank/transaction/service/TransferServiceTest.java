@@ -58,7 +58,7 @@ class TransferServiceTest {
                 new SagaMetrics(meterRegistry), new BigDecimal("1000.00"));
 
         // Mockito does not run JPA's UUID generation when saveAndFlush is mocked.
-        doAnswer(invocation -> {
+        lenient().doAnswer(invocation -> {
             Transaction tx = invocation.getArgument(0);
             ReflectionTestUtils.setField(tx, "id", UUID.randomUUID());
             return tx;
