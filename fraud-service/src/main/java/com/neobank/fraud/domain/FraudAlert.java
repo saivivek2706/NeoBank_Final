@@ -1,6 +1,7 @@
 package com.neobank.fraud.domain;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Setter;
 
 import java.math.BigDecimal;
@@ -9,7 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "fraud_alerts")
-@Setter
+@Setter(AccessLevel.PRIVATE)
 public class FraudAlert {
 
     @Id
