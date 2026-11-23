@@ -45,15 +45,21 @@ async function getCsrfToken(): Promise<string> {
   return csrfTokenPromise;
 }
 
+
 async function rawRequest(path: string, options: RequestInit = {}): Promise<Response> {
   const method = (options.method || "GET").toUpperCase();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  };
-  if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
-    headers["X-XSRF-TOKEN"] = await getCsrfToken();
+
+  // Normalize all supported HeadersInit formats.
+  const headers = new Headers(options.headers);
+
+  if (!headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
   }
+
+  if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
+    headers.set("X-XSRF-TOKEN", await getCsrfToken());
+  }
+
   return fetch(`${BASE}${path}`, {
     ...options,
     credentials: "include",
