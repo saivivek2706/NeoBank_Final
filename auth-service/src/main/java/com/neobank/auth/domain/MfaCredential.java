@@ -1,6 +1,7 @@
 package com.neobank.auth.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.neobank.auth.security.EncryptedMfaSecretConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -33,14 +34,12 @@ public class MfaCredential {
     private UUID userId;
 
     /**
-     * TOTP secret, base32-encoded. Stored as plaintext in this dev/demo
-     * database for simplicity; a real deployment must encrypt this column
-     * at rest (e.g. via application-level envelope encryption with a KMS,
-     * or transparent column encryption) since it's equivalent to a
-     * permanent second password if it leaks.
+     * TOTP secret, base32-encoded and encrypted at rest using AES-256-GCM.
+     * Treat it as a password-equivalent credential.
      */
     @JsonIgnore
-    @Column(nullable = false, length = 64)
+    @Convert(converter = EncryptedMfaSecretConverter.class)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String secret;
 
     @Column(nullable = false)
