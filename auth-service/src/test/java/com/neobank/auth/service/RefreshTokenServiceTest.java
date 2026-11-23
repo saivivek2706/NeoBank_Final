@@ -16,7 +16,6 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -59,9 +58,9 @@ class RefreshTokenServiceTest {
 
     @Test
     void validateAndRotate_rejects_whenDeviceDiffers() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         UUID userId = UUID.randomUUID();
-        when(valueOperations.get("refresh_token:tok-1")).thenReturn(userId + "|device-A");
+        when(redisTemplate.execute(any(DefaultRedisScript.class), eq(java.util.List.of("refresh_token:tok-1"))))
+                .thenReturn(userId + "|device-A");
 
         // Same valid token, but presented from a different device than it was issued to.
         Optional<UUID> result = service.validateAndRotate("tok-1", "device-B");
