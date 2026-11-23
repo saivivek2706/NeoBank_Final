@@ -47,7 +47,7 @@ public class SecurityConfig {
                     .csrfTokenRequestHandler(new ServerCsrfTokenRequestAttributeHandler()))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeExchange(exchange -> exchange
-                    .pathMatchers("/api/v1/auth/**", "/actuator/**", "/.well-known/**",
+                    .pathMatchers("/api/v1/auth/**", "/api/v1/csrf", "/actuator/**", "/.well-known/**",
                             "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**", "/docs/**").permitAll()
                     // WebSocket upgrade requests can't carry an Authorization header from
                     // browser WebSocket clients, and our access_token cookie IS sent on the
