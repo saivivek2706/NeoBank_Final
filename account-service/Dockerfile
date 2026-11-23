@@ -13,6 +13,7 @@ COPY notification-service/pom.xml notification-service/pom.xml
 COPY fraud-service/pom.xml fraud-service/pom.xml
 COPY audit-service/pom.xml audit-service/pom.xml
 COPY compliance-service/pom.xml compliance-service/pom.xml
+COPY customer-service/pom.xml customer-service/pom.xml
 # Resolve dependencies in their own layer so source edits don't re-download the world.
 RUN --mount=type=cache,target=/root/.m2 mvn -q -pl account-service -am dependency:go-offline
 COPY account-service account-service
