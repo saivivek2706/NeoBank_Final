@@ -23,6 +23,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -55,6 +56,19 @@ class TransferServiceTest {
                 processedEventRepository, new ObjectMapper().findAndRegisterModules(), socketNotifier,
                 accountClient, velocityLimitService, stepUpTokenValidator,
                 new SagaMetrics(meterRegistry), new BigDecimal("1000.00"));
+
+        // Mockito does not run JPA's UUID generation when saveAndFlush is mocked.
+        doAnswer(invocation -> {
+            Transaction tx = invocation.getArgument(0);
+            ReflectionTestUtils.setField(tx, "id", UUID.randomUUID());
+            return tx;
+        }).when(transactionRepository).saveAndFlush(any(Transaction.class));
+    }
+
+    private Transaction transactionWithId(UUID from, UUID to, BigDecimal amount, String currency) {
+        Transaction tx = Transaction.initiate(from, to, amount, currency);
+        ReflectionTestUtils.setField(tx, "id", UUID.randomUUID());
+        return tx;
     }
 
     @Test
@@ -108,7 +122,7 @@ class TransferServiceTest {
         TransferRequest request = new TransferRequest(from, to, new BigDecimal("50.00"), "SGD", null);
 
         doThrow(new VelocityLimitExceededException("too many"))
-                .when(velocityLimitService).checkOrThrow(from, request.amount());
+                .when(velocityLimitService).checkOrThrow(from, request.amount(), "FULL");
 
         assertThatThrownBy(() -> transferService.initiateTransfer(request, UUID.randomUUID(), "Bearer test-token", "key-0001"))
                 .isInstanceOf(VelocityLimitExceededException.class);
@@ -160,7 +174,7 @@ class TransferServiceTest {
     }
     @Test
     void onDebitCompleted_movesToCreditPending_andPublishesCreditRequest() {
-        Transaction tx = Transaction.initiate(
+        Transaction tx = transactionWithId(
                 UUID.randomUUID(),
                 UUID.randomUUID(),
                 new BigDecimal("100.00"),
@@ -188,7 +202,7 @@ class TransferServiceTest {
 
     @Test
     void onDebitFailed_marksFailed_withNoCompensationNeeded() {
-        Transaction tx = Transaction.initiate(UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("100.00"), "SGD");
+        Transaction tx = transactionWithId(UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("100.00"), "SGD");
         tx.moveTo(TransactionStatus.DEBIT_PENDING);
 
         TransactionEvent event = new TransactionEvent(UUID.randomUUID(), UUID.randomUUID(), tx.getFromAccountId(),
@@ -211,7 +225,7 @@ class TransferServiceTest {
 
     @Test
     void onCreditCompleted_marksCompleted() {
-        Transaction tx = Transaction.initiate(UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("100.00"), "SGD");
+        Transaction tx = transactionWithId(UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("100.00"), "SGD");
         tx.moveTo(TransactionStatus.CREDIT_PENDING);
 
         TransactionEvent event = TransactionEvent.of(UUID.randomUUID(), tx.getToAccountId(), tx.getAmount(), "SGD");
@@ -232,7 +246,7 @@ class TransferServiceTest {
         // This is the branch that makes it a real saga: the debit already
         // succeeded on the sender, so failing here MUST publish a compensating
         // debit.compensate event, or the sender's money is stuck in limbo.
-        Transaction tx = Transaction.initiate(UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("100.00"), "SGD");
+        Transaction tx = transactionWithId(UUID.randomUUID(), UUID.randomUUID(), new BigDecimal("100.00"), "SGD");
         tx.moveTo(TransactionStatus.CREDIT_PENDING);
 
         TransactionEvent event = new TransactionEvent(UUID.randomUUID(), UUID.randomUUID(), tx.getToAccountId(),
@@ -256,9 +270,9 @@ class TransferServiceTest {
 
     @Test
     void sagaHandlers_areIdempotent_skipAlreadyProcessedEvents() {
-        UUID eventId = UUID.randomUUID();
-        TransactionEvent event = TransactionEvent.of(eventId, UUID.randomUUID(), BigDecimal.TEN, "SGD");
-        when(processedEventRepository.existsById(eventId)).thenReturn(true);
+        TransactionEvent event = TransactionEvent.of(
+                UUID.randomUUID(), UUID.randomUUID(), BigDecimal.TEN, "SGD");
+        when(processedEventRepository.existsById(event.eventId())).thenReturn(true);
 
         transferService.onDebitCompleted(event);
 
