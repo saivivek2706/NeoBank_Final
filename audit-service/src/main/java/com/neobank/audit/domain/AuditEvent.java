@@ -1,5 +1,6 @@
 package com.neobank.audit.domain;
 
+import lombok.AccessLevel;
 import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -28,7 +29,7 @@ import java.util.UUID;
  * what makes that visible.) Records written before the chain existed have no sequence and are reported as "unchained".
  */
 @Document(collection = "audit_events")
-@Setter
+@Setter(AccessLevel.PRIVATE)
 public class AuditEvent {
 
     @Id
