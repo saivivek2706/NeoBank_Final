@@ -9,13 +9,13 @@ import java.util.UUID;
 public class AuthDtos {
 
     public record RegisterRequest(
-            @Email @NotBlank String email,
+            @Email @NotBlank @Size(max = 254) String email,
             @NotBlank @Size(min = 8, message = "Password must be at least 8 characters") String password,
             @NotBlank @Size(max = 500) String fullName
     ) {}
 
     public record LoginRequest(
-            @Email @NotBlank String email,
+            @Email @NotBlank @Size(max = 254) String email,
             @NotBlank String password
     ) {}
 
