@@ -21,18 +21,15 @@ import java.util.UUID;
  * requests to this same origin (via the gateway) - the frontend never
  * touches the token value at all.
  *
- * SameSite=Strict is what removes the CSRF risk that cookie-based auth
- * usually reintroduces: the cookie is only attached to requests that
- * originate from this site itself, so a malicious third-party page cannot
- * trigger an authenticated request against our API using the victim's
- * cookie. This is enough for a same-origin SPA; it would NOT be enough if
- * we ever needed to accept authenticated requests embedded from another
- * origin - that would need double-submit CSRF tokens on top.
+ * SameSite=Strict is defense in depth, not the CSRF control by itself.
+ * Browser mutations are protected at the API gateway with the XSRF-TOKEN
+ * cookie and X-XSRF-TOKEN header. The SPA obtains the token from GET
+ * /api/v1/csrf before sending state-changing requests.
  *
- * A `device_id` cookie (random, long-lived, httpOnly) is also (re)issued on
- * every successful auth here - it's what RefreshTokenService binds refresh
- * tokens to, so a stolen refresh token alone can't be replayed from a
- * different browser/device (see RefreshTokenService for the full reasoning).
+ * A device_id cookie is an opaque browser identifier used as an additional
+ * refresh-token check. It is not cryptographic device attestation: theft of
+ * both the refresh token and device cookie can still permit replay.
+ *
  */
 @RestController
 @RequestMapping("/api/v1/auth")
