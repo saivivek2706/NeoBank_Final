@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.AccessLevel;
 import lombok.Setter;
 
 import java.math.BigDecimal;
@@ -21,7 +22,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "holds")
-@Setter
+@Setter(AccessLevel.PRIVATE)
 public class Hold {
 
     @Id
