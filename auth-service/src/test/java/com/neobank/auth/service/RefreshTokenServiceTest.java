@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.time.Duration;
 import java.util.Optional;
@@ -45,15 +46,15 @@ class RefreshTokenServiceTest {
 
     @Test
     void validateAndRotate_succeeds_whenDeviceMatches() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         UUID userId = UUID.randomUUID();
-        when(valueOperations.get("refresh_token:tok-1")).thenReturn(userId + "|device-A");
+        when(redisTemplate.execute(any(DefaultRedisScript.class), eq(java.util.List.of("refresh_token:tok-1"))))
+                .thenReturn(userId + "|device-A");
 
         Optional<UUID> result = service.validateAndRotate("tok-1", "device-A");
 
         assertThat(result).contains(userId);
-        // One-time use: the token must be deleted regardless of outcome.
-        verify(redisTemplate).delete("refresh_token:tok-1");
+        // One-time use is enforced atomically by a Redis GET+DEL script.
+        verify(redisTemplate).execute(any(DefaultRedisScript.class), eq(java.util.List.of("refresh_token:tok-1")));
     }
 
     @Test
@@ -68,13 +69,12 @@ class RefreshTokenServiceTest {
         assertThat(result).isEmpty();
         // Still burned - a mismatched presentation is treated as a possible
         // theft attempt, not a request to just try again.
-        verify(redisTemplate).delete("refresh_token:tok-1");
+        verify(redisTemplate).execute(any(DefaultRedisScript.class), eq(java.util.List.of("refresh_token:tok-1")));
     }
 
     @Test
     void validateAndRotate_returnsEmpty_whenTokenUnknown() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get(anyString())).thenReturn(null);
+        when(redisTemplate.execute(any(DefaultRedisScript.class), anyList())).thenReturn(null);
 
         assertThat(service.validateAndRotate("nonexistent", "device-A")).isEmpty();
     }
