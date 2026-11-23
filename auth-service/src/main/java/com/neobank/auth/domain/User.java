@@ -1,5 +1,6 @@
 package com.neobank.auth.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.neobank.auth.security.EncryptedStringConverter;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -76,6 +77,7 @@ public class User {
         return this.emailHash;
     }
 
+    @JsonIgnore
     public String getPasswordHash() {
         return this.passwordHash;
     }
