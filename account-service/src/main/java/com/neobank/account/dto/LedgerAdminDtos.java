@@ -6,6 +6,7 @@ import com.neobank.account.domain.ReconciliationBreak;
 import com.neobank.account.domain.ReconciliationRun;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -24,7 +25,7 @@ public final class LedgerAdminDtos {
     public record StatementLineRequest(
             @NotBlank @Size(max = 100) String reference,
             @NotNull MovementDirection direction,
-            @NotNull @DecimalMin(value = "0.0001", message = "amount must be positive") BigDecimal amount,
+            @NotNull @DecimalMin(value = "0.0001", message = "amount must be positive") @Digits(integer = 15, fraction = 4, message = "Amount must fit NUMERIC(19,4)") BigDecimal amount,
             @Size(max = 255) String description
     ) {
     }
