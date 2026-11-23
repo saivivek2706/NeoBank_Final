@@ -2,6 +2,8 @@ package com.neobank.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import java.util.List;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +38,9 @@ public class RefreshTokenService {
     private static final String TOKEN_KEY_PREFIX = "refresh_token:";
     private static final String KNOWN_DEVICES_PREFIX = "known_devices:";
     private static final Duration TTL = Duration.ofDays(7);
+    private static final DefaultRedisScript<String> GET_AND_DELETE = new DefaultRedisScript<>(
+            "local value = redis.call('GET', KEYS[1]); if value then redis.call('DEL', KEYS[1]); end; return value",
+            String.class);
 
     private final StringRedisTemplate redisTemplate;
 
@@ -48,11 +53,10 @@ public class RefreshTokenService {
     /** Returns the owning userId if the token is valid AND was issued to this same device, otherwise empty. */
     public Optional<UUID> validateAndRotate(String token, String deviceId) {
         String key = TOKEN_KEY_PREFIX + token;
-        String stored = redisTemplate.opsForValue().get(key);
+        String stored = redisTemplate.execute(GET_AND_DELETE, List.of(key));
         if (stored == null) {
             return Optional.empty();
         }
-        redisTemplate.delete(key); // one-time use, regardless of outcome below
 
         String[] parts = stored.split("\\|", 2);
         String boundUserId = parts[0];
