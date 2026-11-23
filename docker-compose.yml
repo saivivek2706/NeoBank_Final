@@ -216,6 +216,7 @@ services:
       JWT_KEY_ID: ${JWT_KEY_ID:-neobank-key-1}
       PII_ENCRYPTION_KEY_B64: ${PII_ENCRYPTION_KEY_B64:?run scripts/bootstrap-env.sh}
       PII_BLIND_INDEX_KEY_B64: ${PII_BLIND_INDEX_KEY_B64:?run scripts/bootstrap-env.sh}
+      MFA_ENCRYPTION_KEY_B64: ${MFA_ENCRYPTION_KEY_B64:?run scripts/bootstrap-env.sh}
       ADMIN_BOOTSTRAP_EMAIL: ${ADMIN_BOOTSTRAP_EMAIL:-}
       ADMIN_BOOTSTRAP_PASSWORD: ${ADMIN_BOOTSTRAP_PASSWORD:-}
     depends_on:
