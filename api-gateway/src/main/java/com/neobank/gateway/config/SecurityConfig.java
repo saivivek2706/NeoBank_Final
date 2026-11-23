@@ -8,6 +8,8 @@ import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.oauth2.jwt.NimbusReactiveJwtDecoder;
 import org.springframework.security.oauth2.jwt.ReactiveJwtDecoder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.csrf.CookieServerCsrfTokenRepository;
+import org.springframework.security.web.server.csrf.ServerCsrfTokenRequestAttributeHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -38,12 +40,11 @@ public class SecurityConfig {
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
         http
-            // Cookie-based auth needs CSRF protection in general, but this API is
-            // same-origin-only (nginx/Vite both proxy /api server-side - see
-            // frontend/nginx.conf and vite.config.ts) and cookies are
-            // SameSite=Strict, which already blocks cross-site cookie attachment.
-            // CSRF stays disabled deliberately for that reason, not by oversight.
-            .csrf(csrf -> csrf.disable())
+            // The gateway converts the HttpOnly access cookie into a bearer header,
+            // so every browser mutation must carry a matching CSRF cookie/header.
+            .csrf(csrf -> csrf
+                    .csrfTokenRepository(CookieServerCsrfTokenRepository.withHttpOnlyFalse())
+                    .csrfTokenRequestHandler(new ServerCsrfTokenRequestAttributeHandler()))
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeExchange(exchange -> exchange
                     .pathMatchers("/api/v1/auth/**", "/actuator/**", "/.well-known/**",
