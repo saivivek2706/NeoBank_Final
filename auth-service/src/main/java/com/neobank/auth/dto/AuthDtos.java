@@ -10,8 +10,8 @@ public class AuthDtos {
 
     public record RegisterRequest(
             @Email @NotBlank String email,
-            @Size(min = 8, message = "Password must be at least 8 characters") String password,
-            @NotBlank String fullName
+            @NotBlank @Size(min = 8, message = "Password must be at least 8 characters") String password,
+            @NotBlank @Size(max = 500) String fullName
     ) {}
 
     public record LoginRequest(
