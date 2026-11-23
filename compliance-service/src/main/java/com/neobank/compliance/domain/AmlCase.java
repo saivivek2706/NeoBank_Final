@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -24,6 +25,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "aml_cases")
+@Setter
 public class AmlCase {
 
     @Id

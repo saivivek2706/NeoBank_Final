@@ -1,6 +1,7 @@
 package com.neobank.account.domain;
 
 import jakarta.persistence.*;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -17,6 +18,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "accounts")
+@Setter
 public class Account {
 
     @Id

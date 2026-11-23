@@ -1,6 +1,7 @@
 package com.neobank.transaction.domain;
 
 import jakarta.persistence.*;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -8,6 +9,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "transactions")
+@Setter
 public class Transaction {
 
     @Id

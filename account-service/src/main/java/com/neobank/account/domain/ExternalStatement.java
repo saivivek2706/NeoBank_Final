@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Setter;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -14,6 +15,7 @@ import java.util.UUID;
 /** Header of an uploaded external (settlement bank) statement for one date and currency. */
 @Entity
 @Table(name = "external_statements")
+@Setter
 public class ExternalStatement {
 
     @Id
