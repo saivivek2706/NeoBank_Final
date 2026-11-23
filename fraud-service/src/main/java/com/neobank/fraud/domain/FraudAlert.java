@@ -34,7 +34,7 @@ public class FraudAlert {
     @Column(nullable = false, length = 20)
     private FraudSeverity severity;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String details;
 
     @Column(nullable = false)
