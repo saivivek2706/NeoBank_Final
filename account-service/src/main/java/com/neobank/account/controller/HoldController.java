@@ -71,7 +71,7 @@ public class HoldController {
     @PostMapping("/{holdId}/capture")
     @Operation(summary = "Capture a hold (ADMIN)", description = "Turns the hold into a real debit posted to the ledger. Omit amount to capture it all; a smaller amount releases the remainder.")
     public HoldResponse capture(@PathVariable UUID accountId, @PathVariable UUID holdId,
-                                @RequestBody(required = false) CaptureHoldRequest request, @AuthenticationPrincipal Jwt jwt) {
+                                @Valid @RequestBody(required = false) CaptureHoldRequest request, @AuthenticationPrincipal Jwt jwt) {
         requireAdmin(jwt);
         return HoldResponse.from(holdService.capture(accountId, holdId, request == null ? null : request.amount()));
     }
