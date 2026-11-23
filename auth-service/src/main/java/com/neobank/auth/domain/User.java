@@ -2,6 +2,7 @@ package com.neobank.auth.domain;
 
 import com.neobank.auth.security.EncryptedStringConverter;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Setter;
 
 import java.time.Duration;
@@ -10,7 +11,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "users")
-@Setter
+@Setter(AccessLevel.PRIVATE)
 public class User {
 
     @Id
