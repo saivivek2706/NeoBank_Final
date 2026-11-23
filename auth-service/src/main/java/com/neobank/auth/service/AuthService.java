@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,6 +35,8 @@ public class AuthService {
     private final TotpService totpService;
     private final RsaKeyProperties rsaKeys;
     private final BlindIndexService blindIndexService;
+    private final LoginAttemptService loginAttemptService;
+    private final PurposeTokenReplayService purposeTokenReplayService;
     private final int maxFailedAttempts;
     private final long lockoutDurationMinutes;
 
@@ -45,6 +48,8 @@ public class AuthService {
                         TotpService totpService,
                         RsaKeyProperties rsaKeys,
                         BlindIndexService blindIndexService,
+                        LoginAttemptService loginAttemptService,
+                        PurposeTokenReplayService purposeTokenReplayService,
                         @Value("${security.lockout.max-attempts:5}") int maxFailedAttempts,
                         @Value("${security.lockout.duration-minutes:15}") long lockoutDurationMinutes) {
         this.userRepository = userRepository;
@@ -55,6 +60,8 @@ public class AuthService {
         this.totpService = totpService;
         this.rsaKeys = rsaKeys;
         this.blindIndexService = blindIndexService;
+        this.loginAttemptService = loginAttemptService;
+        this.purposeTokenReplayService = purposeTokenReplayService;
         this.maxFailedAttempts = maxFailedAttempts;
         this.lockoutDurationMinutes = lockoutDurationMinutes;
     }
@@ -96,9 +103,9 @@ public class AuthService {
         }
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
-            user.registerFailedLogin(maxFailedAttempts, Duration.ofMinutes(lockoutDurationMinutes));
-            userRepository.save(user);
-            if (user.isLocked()) {
+            boolean locked = loginAttemptService.registerFailedAttempt(user.getId(), maxFailedAttempts,
+                    Duration.ofMinutes(lockoutDurationMinutes));
+            if (locked) {
                 throw new AccountLockedException();
             }
             throw new InvalidCredentialsException();
@@ -107,8 +114,7 @@ public class AuthService {
             throw new IllegalStateException("Account is disabled");
         }
 
-        user.registerSuccessfulLogin();
-        userRepository.save(user);
+        loginAttemptService.reset(user.getId());
 
         Optional<MfaCredential> mfa = mfaCredentialRepository.findById(user.getId());
         if (mfa.isPresent() && mfa.get().isEnabled()) {
@@ -135,6 +141,9 @@ public class AuthService {
         if (!totpService.verifyCode(mfa.getSecret(), code)) {
             throw new InvalidCredentialsException();
         }
+        if (!purposeTokenReplayService.consume(jwsId(challengeToken), tokenExpiry(challengeToken))) {
+            throw new InvalidCredentialsException();
+        }
         return issueTokens(user, deviceId);
     }
 
@@ -154,6 +163,9 @@ public class AuthService {
 
     @Transactional
     public MfaEnrollResponse startMfaEnrollment(UUID userId, String email) {
+        mfaCredentialRepository.findById(userId).filter(MfaCredential::isEnabled).ifPresent(existing -> {
+            throw new IllegalStateException("MFA is already enabled; verify the existing factor before replacing it");
+        });
         String secret = totpService.generateSecret();
         mfaCredentialRepository.save(MfaCredential.pendingEnrollment(userId, secret));
         return new MfaEnrollResponse(secret, totpService.provisioningUri(secret, email, "NeoBank"));
@@ -182,20 +194,30 @@ public class AuthService {
         return jwtService.generatePurposeToken(userId, "TRANSFER_STEP_UP", Duration.ofMinutes(2));
     }
 
+    private String jwsId(String token) {
+        return parsePurposeClaims(token).getId();
+    }
+
+    private Instant tokenExpiry(String token) {
+        return parsePurposeClaims(token).getExpiration().toInstant();
+    }
+
+    private io.jsonwebtoken.Claims parsePurposeClaims(String token) {
+        return io.jsonwebtoken.Jwts.parser().verifyWith(rsaKeys.getPublicKey()).build()
+                .parseSignedClaims(token).getPayload();
+    }
+
     private UUID verifyPurposeToken(String token, String expectedPurpose) {
         // Challenge tokens are verified the same way any other service would -
         // by signature - rather than trusted implicitly just because they came
         // back through this same process.
         try {
-            io.jsonwebtoken.Jws<io.jsonwebtoken.Claims> jws = io.jsonwebtoken.Jwts.parser()
-                    .verifyWith(rsaKeys.getPublicKey())
-                    .build()
-                    .parseSignedClaims(token);
-            String purpose = jws.getPayload().get("purpose", String.class);
-            if (!expectedPurpose.equals(purpose)) {
+            io.jsonwebtoken.Claims claims = parsePurposeClaims(token);
+            String purpose = claims.get("purpose", String.class);
+            if (!expectedPurpose.equals(purpose) || claims.getId() == null) {
                 throw new InvalidCredentialsException();
             }
-            return UUID.fromString(jws.getPayload().getSubject());
+            return UUID.fromString(claims.getSubject());
         } catch (InvalidCredentialsException e) {
             throw e;
         } catch (Exception e) {
