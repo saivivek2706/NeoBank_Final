@@ -1,5 +1,6 @@
 package com.neobank.auth.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -38,7 +39,8 @@ public class MfaCredential {
      * or transparent column encryption) since it's equivalent to a
      * permanent second password if it leaks.
      */
-    @Column(nullable = false)
+    @JsonIgnore
+    @Column(nullable = false, length = 64)
     private String secret;
 
     @Column(nullable = false)
