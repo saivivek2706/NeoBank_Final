@@ -1,6 +1,7 @@
 package com.neobank.notification.domain;
 
 import jakarta.persistence.*;
+import lombok.AccessLevel;
 import lombok.Setter;
 
 import java.math.BigDecimal;
@@ -17,7 +18,7 @@ import java.util.UUID;
  */
 @Entity
 @Table(name = "notifications")
-@Setter
+@Setter(AccessLevel.PRIVATE)
 public class Notification {
 
     @Id
