@@ -25,7 +25,7 @@ public class User {
      * exactly why emailHash exists below.
      */
     @Convert(converter = EncryptedStringConverter.class)
-    @Column(nullable = false, length = 500)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String email;
 
     /** Deterministic HMAC blind index of the normalized email - see BlindIndexService. This, not `email`, is what login/registration actually query and unique-constrain on. */
