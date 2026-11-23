@@ -8,6 +8,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import lombok.AccessLevel;
 import lombok.Setter;
 
 import java.time.Instant;
@@ -15,7 +16,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "aml_alerts")
-@Setter
+@Setter(AccessLevel.PRIVATE)
 public class AmlAlert {
 
     @Id
