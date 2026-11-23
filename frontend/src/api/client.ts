@@ -30,7 +30,7 @@ let csrfTokenPromise: Promise<string> | null = null;
 
 async function getCsrfToken(): Promise<string> {
   if (!csrfTokenPromise) {
-    csrfTokenPromise = fetch(`${BASE}/auth/csrf`, { credentials: "include" })
+    csrfTokenPromise = fetch(`${BASE}/csrf`, { credentials: "include" })
       .then(async (res) => {
         if (!res.ok) throw new Error("Unable to obtain CSRF token");
         const body = await res.json();
