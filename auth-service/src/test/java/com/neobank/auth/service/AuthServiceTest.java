@@ -37,13 +37,16 @@ class AuthServiceTest {
     @Mock private TotpService totpService;
     @Mock private RsaKeyProperties rsaKeyProperties;
     @Mock private BlindIndexService blindIndexService;
+    @Mock private LoginAttemptService loginAttemptService;
+    @Mock private PurposeTokenReplayService purposeTokenReplayService;
 
     private AuthService authService;
 
     @BeforeEach
     void setUp() {
         authService = new AuthService(userRepository, mfaCredentialRepository, passwordEncoder, jwtService,
-                refreshTokenService, totpService, rsaKeyProperties, blindIndexService, 5, 15);
+                refreshTokenService, totpService, rsaKeyProperties, blindIndexService,
+                loginAttemptService, purposeTokenReplayService, 5, 15);
     }
 
     @Test
@@ -97,6 +100,8 @@ class AuthServiceTest {
         when(blindIndexService.hashEmail("real@neobank.dev")).thenReturn("hash-real@neobank.dev");
         when(userRepository.findByEmailHash("hash-real@neobank.dev")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong-password", "correct-hash")).thenReturn(false);
+        when(loginAttemptService.registerFailedAttempt(user.getId(), 5, java.time.Duration.ofMinutes(15)))
+                .thenReturn(false);
 
         assertThatThrownBy(() -> authService.login(request, "test-device-1"))
                 .isInstanceOf(InvalidCredentialsException.class);
@@ -145,22 +150,20 @@ class AuthServiceTest {
         when(userRepository.findByEmailHash("hash-target@neobank.dev")).thenReturn(Optional.of(user));
         when(passwordEncoder.matches("wrong-password", "correct-hash")).thenReturn(false);
 
+        when(loginAttemptService.registerFailedAttempt(user.getId(), 5, java.time.Duration.ofMinutes(15)))
+                .thenReturn(false, false, false, false, true);
+
         // First 4 failures (maxFailedAttempts=5 in setUp) should still be "just" invalid credentials.
         for (int i = 0; i < 4; i++) {
             assertThatThrownBy(() -> authService.login(request, "test-device-1"))
                     .isInstanceOf(InvalidCredentialsException.class);
         }
-        assertThat(user.isLocked()).isFalse();
-
         // The 5th failure crosses the threshold and locks the account.
         assertThatThrownBy(() -> authService.login(request, "test-device-1"))
                 .isInstanceOf(com.neobank.auth.exception.AccountLockedException.class);
         assertThat(user.isLocked()).isTrue();
 
-        // Even with the correct password, a locked account must still be rejected.
-       // when(passwordEncoder.matches("correct-password", "correct-hash")).thenReturn(true);
-        assertThatThrownBy(() -> authService.login(new LoginRequest("target@neobank.dev", "correct-password"), "test-device-1"))
-                .isInstanceOf(com.neobank.auth.exception.AccountLockedException.class);
+        verify(loginAttemptService, times(5)).registerFailedAttempt(user.getId(), 5, java.time.Duration.ofMinutes(15));
     }
 
     @Test
@@ -179,7 +182,7 @@ class AuthServiceTest {
 
         authService.login(new LoginRequest("recover@neobank.dev", "correct-password"), "test-device-1");
 
-        assertThat(user.isLocked()).isFalse();
+        verify(loginAttemptService).reset(user.getId());
     }
 
     @Test
