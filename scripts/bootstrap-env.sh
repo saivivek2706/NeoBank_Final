@@ -42,6 +42,7 @@ JWT_PRIVATE_KEY_B64=$(b64file "$tmp/private_pkcs8.pem")
 JWT_PUBLIC_KEY_B64=$(b64file "$tmp/public.pem")
 PII_ENCRYPTION_KEY_B64=$(key32)
 PII_BLIND_INDEX_KEY_B64=$(key32)
+MFA_ENCRYPTION_KEY_B64=$(key32)
 
 # ---- first admin account (created on first start only; change the password after logging in) ----
 ADMIN_BOOTSTRAP_EMAIL=admin@neobank.local
