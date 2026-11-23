@@ -26,14 +26,38 @@ async function handle<T>(res: Response): Promise<T> {
 // The access token lives in an httpOnly cookie set by auth-service, so the
 // browser attaches it automatically - there's no Authorization header for
 // this client to manage, and no token value JS ever touches.
+let csrfTokenPromise: Promise<string> | null = null;
+
+async function getCsrfToken(): Promise<string> {
+  if (!csrfTokenPromise) {
+    csrfTokenPromise = fetch(`${BASE}/auth/csrf`, { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Unable to obtain CSRF token");
+        const body = await res.json();
+        if (!body.token) throw new Error("CSRF endpoint returned no token");
+        return body.token as string;
+      })
+      .catch((error) => {
+        csrfTokenPromise = null;
+        throw error;
+      });
+  }
+  return csrfTokenPromise;
+}
+
 async function rawRequest(path: string, options: RequestInit = {}): Promise<Response> {
+  const method = (options.method || "GET").toUpperCase();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...options.headers,
+  };
+  if (!["GET", "HEAD", "OPTIONS", "TRACE"].includes(method)) {
+    headers["X-XSRF-TOKEN"] = await getCsrfToken();
+  }
   return fetch(`${BASE}${path}`, {
     ...options,
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
+    headers,
   });
 }
 
@@ -75,7 +99,8 @@ export const api = {
   put: <T>(path: string, body: unknown) => request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
   upload: async <T>(path: string, form: FormData): Promise<T> => {
-    const res = await fetch(`${BASE}${path}`, { method: "POST", credentials: "include", body: form });
+    const csrfToken = await getCsrfToken();
+    const res = await fetch(`${BASE}${path}`, { method: "POST", credentials: "include", headers: { "X-XSRF-TOKEN": csrfToken }, body: form });
     return handle<T>(res);
   },
 
