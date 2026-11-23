@@ -11,8 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
-import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
 
 @Configuration
 @EnableWebSecurity
@@ -53,7 +51,6 @@ public class SecurityConfig {
                             "/api/v1/auth/login",
                             "/api/v1/auth/refresh",
                             "/api/v1/auth/logout",
-                            "/api/v1/auth/csrf",
                             "/api/v1/auth/mfa/login-challenge",
                             "/actuator/**",
                             "/v3/api-docs/**",
