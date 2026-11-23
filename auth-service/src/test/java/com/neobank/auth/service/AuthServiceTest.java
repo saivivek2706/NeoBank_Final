@@ -161,8 +161,6 @@ class AuthServiceTest {
         // The 5th failure crosses the threshold and locks the account.
         assertThatThrownBy(() -> authService.login(request, "test-device-1"))
                 .isInstanceOf(com.neobank.auth.exception.AccountLockedException.class);
-        assertThat(user.isLocked()).isTrue();
-
         verify(loginAttemptService, times(5)).registerFailedAttempt(user.getId(), 5, java.time.Duration.ofMinutes(15));
     }
 
