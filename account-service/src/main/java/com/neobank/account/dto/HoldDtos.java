@@ -25,7 +25,7 @@ public final class HoldDtos {
     ) {
     }
 
-    public record CaptureHoldRequest(@DecimalMin(value = "0.0001", message = "Capture amount must be positive") BigDecimal amount) {
+    public record CaptureHoldRequest(@NotNull @DecimalMin(value = "0.0001", message = "Capture amount must be positive") BigDecimal amount) {
     }
 
     public record HoldResponse(UUID id, UUID accountId, BigDecimal amount, BigDecimal capturedAmount, String currency,
