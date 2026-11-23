@@ -3,6 +3,7 @@ package com.neobank.account.dto;
 import com.neobank.account.domain.Hold;
 import com.neobank.account.domain.HoldStatus;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -18,14 +19,14 @@ public final class HoldDtos {
     }
 
     public record PlaceHoldRequest(
-            @NotNull @DecimalMin(value = "0.0001", message = "Hold amount must be positive") BigDecimal amount,
+            @NotNull @DecimalMin(value = "0.0001", message = "Hold amount must be positive") @Digits(integer = 15, fraction = 4, message = "Hold amount must fit NUMERIC(19,4)") BigDecimal amount,
             @NotBlank @Size(max = 100) String reference,
             @Size(max = 255) String reason,
             @Positive Long ttlMinutes
     ) {
     }
 
-    public record CaptureHoldRequest(@NotNull @DecimalMin(value = "0.0001", message = "Capture amount must be positive") BigDecimal amount) {
+    public record CaptureHoldRequest(@NotNull @DecimalMin(value = "0.0001", message = "Capture amount must be positive") @Digits(integer = 15, fraction = 4, message = "Capture amount must fit NUMERIC(19,4)") BigDecimal amount) {
     }
 
     public record HoldResponse(UUID id, UUID accountId, BigDecimal amount, BigDecimal capturedAmount, String currency,
