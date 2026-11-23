@@ -149,6 +149,7 @@
                         <!-- THROWAWAY key used only by unit tests (EncryptedStringConverter has no built-in default).
                              Never used to encrypt real data. -->
                         <pii.encryption.key.b64>UuwbXe1QMbDaKSUGpQnQWHgbOBtnCopNaXjDqKh5OPk=</pii.encryption.key.b64>
+                        <mfa.encryption.key.b64>k2z8u9x3Q0q4Y5s7T1v6W8a2B4c9D0e1F3g5H7j9L0M=</mfa.encryption.key.b64>
                     </systemPropertyVariables>
                 </configuration>
             </plugin>
